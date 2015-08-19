@@ -1,0 +1,32 @@
+language: python
+
+# Use container-based infrastructure
+sudo: false
+
+env:
+    - PYTHON=2.7
+    - PYTHON=3.4
+    - PYTHON=2.6 NUMPY="=1.7"
+
+# Setup anaconda
+before_install:
+  - wget -q http://repo.continuum.io/miniconda/Miniconda-latest-Linux-x86_64.sh -O miniconda.sh
+  - chmod +x miniconda.sh
+  - ./miniconda.sh -b
+  - export PATH=/home/travis/miniconda/bin:$PATH
+  - conda update --yes --quiet conda
+
+install:
+    - conda create -n testenv --yes pip python=$PYTHON
+    - source activate testenv
+    - conda install --yes --quiet nose numpy$NUMPY scipy h5py pep8 pyflakes flake8
+    - pip install -q coverage coveralls
+    - python setup.py build
+    - python setup.py install
+
+script:
+    - nosetests --verbosity=2 --with-coverage
+    - make flake
+
+after_success:
+    - coveralls

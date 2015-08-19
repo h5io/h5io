@@ -1,0 +1,16 @@
+*.pyc
+*.pyo
+*.sh
+*.so
+*~
+.#*
+*.swp
+*.lprof
+*.egg*
+.DS_Store
+build
+coverage
+
+dist/
+.coverage
+tags
