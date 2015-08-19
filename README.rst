@@ -1,5 +1,15 @@
 .. -*- mode: rst -*-
 
+|Travis|_ |Appveyor|_ |Coveralls|_
+
+.. |Travis| image:: https://api.travis-ci.org/h5io/h5io.png?branch=master
+.. _Travis: https://travis-ci.org/h5io/h5io
+
+.. |Appveyor| image:: https://ci.appveyor.com/api/projects/status/puwaarmllxq5wfvm/branch/master?svg=true
+.. _Appveyor: https://ci.appveyor.com/project/Eric89GXL/h5io/branch/master
+
+.. |Coveralls| image:: https://coveralls.io/repos/h5io/h5io/badge.png?branch=master
+.. _Coveralls: https://coveralls.io/r/h5io/h5io?branch=master
 
 `h5io <http://h5io.github.io>`_
 =======================================================
