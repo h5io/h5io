@@ -3,4 +3,4 @@
 
 __version__ = '0.1.dev0'
 
-from ._hdf5 import read_hdf5, write_hdf5, _TempDir, object_diff  # noqa, analysis:ignore
+from ._h5io import read_hdf5, write_hdf5, _TempDir, object_diff  # noqa, analysis:ignore
