@@ -14,9 +14,9 @@
 `h5io <http://h5io.github.io>`_
 =======================================================
 
-Python Objects Onto HDF5 (h5io) is a package designed to
-facilitate saving standard Python objects into the forward-compatible
-HDF5 format.
+h5io is a package designed to facilitate saving some standard Python
+objects into the forward-compatible HDF5 format. It is a higher-level
+package than ``h5py``.
 
 Get the latest code
 ^^^^^^^^^^^^^^^^^^^
