@@ -3,7 +3,10 @@ from os import path as op
 from nose.tools import assert_raises, assert_true, assert_equal
 
 import numpy as np
-from scipy import sparse
+try:
+    from scipy import sparse
+except ImportError:
+    sparse = None
 
 from h5io import write_hdf5, read_hdf5, _TempDir, object_diff
 
@@ -13,7 +16,7 @@ def test_hdf5():
     """
     tempdir = _TempDir()
     test_file = op.join(tempdir, 'test.hdf5')
-    sp = sparse.eye(3, 3, format='csc')
+    sp = np.eye(3) if sparse is None else sparse.eye(3, 3, format='csc')
     sp[2, 2] = 2
     x = dict(a=dict(b=np.zeros(3)), c=np.zeros(2, np.complex128),
              d=[dict(e=(1, -2., 'hello', u'goodbyeu\u2764')), None], f=sp)
@@ -46,9 +49,10 @@ def test_object_diff():
     assert_true('value' in object_diff('a', 'b'))
     assert_true('None' in object_diff(None, 'b'))
     assert_true('array mismatch' in object_diff(np.array([1]), np.array([2])))
-    a = sparse.coo_matrix([[1]])
-    b = sparse.coo_matrix([[1, 2]])
-    assert_true('shape mismatch' in object_diff(a, b))
-    c = sparse.coo_matrix([[1, 1]])
-    assert_true('1 element' in object_diff(b, c))
+    if sparse is not None:
+        a = sparse.coo_matrix([[1]])
+        b = sparse.coo_matrix([[1, 2]])
+        assert_true('shape mismatch' in object_diff(a, b))
+        c = sparse.coo_matrix([[1, 1]])
+        assert_true('1 element' in object_diff(b, c))
     assert_raises(RuntimeError, object_diff, object, object)

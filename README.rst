@@ -52,9 +52,8 @@ or for the latest development version (the most up to date)::
 Dependencies
 ^^^^^^^^^^^^
 
-The required dependencies to build the software are ``h5py``, ``numpy``,
-and ``scipy``. Eventually the ``scipy`` requirement could be relaxed if
-users need it.
+The required dependencies to build the software are ``h5py`` and ``numpy``.
+``scipy`` is required for sparse matrix IO support.
 
 Licensing
 ^^^^^^^^^

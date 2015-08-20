@@ -6,7 +6,7 @@ sudo: false
 env:
     - PYTHON=2.7
     - PYTHON=3.4
-    - PYTHON=2.6 NUMPY="=1.7"
+    - PYTHON=2.6 NUMPY="=1.7" DEPS="minimal"
 
 # Setup anaconda
 before_install:
@@ -19,7 +19,10 @@ before_install:
 install:
     - conda create -n testenv --yes pip python=$PYTHON
     - source activate testenv
-    - conda install --yes --quiet nose numpy$NUMPY scipy h5py pep8 pyflakes flake8
+    - conda install --yes --quiet nose numpy$NUMPY h5py pep8 pyflakes flake8
+    - if [ "${DEPS}" != "minimal" ]; then
+        conda install --yes --quiet numpy$NUMPY scipy;
+      fi;
     - pip install -q coverage coveralls
     - python setup.py build
     - python setup.py install
