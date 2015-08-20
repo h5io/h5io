@@ -38,7 +38,7 @@ def _create_titled_dataset(root, key, title, data, comp_kw=None):
 
 
 def write_hdf5(fname, data, overwrite=False, compression=4,
-               title='pooh'):
+               title='h5io'):
     """Write python object to HDF5 format using h5py
 
     Parameters
@@ -116,7 +116,7 @@ def _triage_write(key, value, root, comp_kw, where):
 ##############################################################################
 # READING
 
-def read_hdf5(fname, title='pooh'):
+def read_hdf5(fname, title='h5io'):
     """Read python object from HDF5 format using h5py
 
     Parameters
