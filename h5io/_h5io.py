@@ -66,6 +66,9 @@ def write_hdf5(fname, data, overwrite=False, compression=4,
     title : str
         The top-level directory name to use. Typically it is useful to make
         this your package name, e.g. ``'mnepython'``.
+    update_title : bool
+        If True, override value for title (if title exists). If False and title
+        exists and error will be raised.
     """
     h5py = _check_h5py()
     mode = 'a'

@@ -46,6 +46,8 @@ def test_hdf5():
     write_hdf5(test_file, 3, title='second', update_title=True)
     assert_equal(read_hdf5(test_file, title='second'), 3)
 
+    write_hdf5(test_file, 3, title='second', update_title=True, compression=5)
+
 
 def test_object_diff():
     """Test object diff calculation
