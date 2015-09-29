@@ -80,7 +80,7 @@ def write_hdf5(fname, data, overwrite=False, compression=4,
     if compression > 0:
         comp_kw = dict(compression='gzip', compression_opts=compression)
     with h5py.File(fname, mode=mode) as fid:
-        if title in fid.keys():
+        if title in fid:
             if not update_title:
                 raise IOError('title %s already exists, use update_title=True'
                               'to override')
@@ -158,8 +158,11 @@ def read_hdf5(fname, title='h5io'):
     if not isinstance(title, string_types):
         raise ValueError('title must be a string')
     with h5py.File(fname, mode='r') as fid:
-        if title not in fid.keys():
+        if title not in fid:
             raise ValueError('no "%s" data found' % title)
+        if isinstance(fid[title], h5py.Group):
+            if 'TITLE' not in fid[title].attrs:
+                raise ValueError('no "%s" data found' % title)
         data = _triage_read(fid[title])
     return data
 

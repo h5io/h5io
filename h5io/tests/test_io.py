@@ -50,6 +50,16 @@ def test_hdf5():
     assert_equal(read_hdf5(test_file, title='second'), 5)
 
 
+def test_path_support():
+    tempdir = _TempDir()
+    test_file = op.join(tempdir, 'test.hdf5')
+    write_hdf5(test_file, 1, title='first')
+    write_hdf5(test_file, 2, title='second/third')
+    assert_raises(ValueError, read_hdf5, test_file, title='second')
+    assert_equal(read_hdf5(test_file, 'first'), 1)
+    assert_equal(read_hdf5(test_file, 'second/third'), 2)
+
+
 def test_object_diff():
     """Test object diff calculation
     """
