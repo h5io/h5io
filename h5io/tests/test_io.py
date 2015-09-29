@@ -38,6 +38,14 @@ def test_hdf5():
                   overwrite=True)
     assert_raises(TypeError, write_hdf5, test_file, object, overwrite=True)
 
+    write_hdf5(test_file, 1, title='first')
+    write_hdf5(test_file, 2, title='second')
+    assert_equal(read_hdf5(test_file, title='first'), 1)
+    assert_equal(read_hdf5(test_file, title='second'), 2)
+    assert_raises(IOError, write_hdf5, test_file, 3, title='second')
+    write_hdf5(test_file, 3, title='second', update_title=True)
+    assert_equal(read_hdf5(test_file, title='second'), 3)
+
 
 def test_object_diff():
     """Test object diff calculation

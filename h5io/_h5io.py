@@ -48,7 +48,7 @@ def _create_titled_dataset(root, key, title, data, comp_kw=None):
 
 
 def write_hdf5(fname, data, overwrite=False, compression=4,
-               title='h5io'):
+               title='h5io', update_title=False):
     """Write python object to HDF5 format using h5py
 
     Parameters
@@ -68,15 +68,21 @@ def write_hdf5(fname, data, overwrite=False, compression=4,
         this your package name, e.g. ``'mnepython'``.
     """
     h5py = _check_h5py()
-    if op.isfile(fname) and not overwrite:
-        raise IOError('file "%s" exists, use overwrite=True to overwrite'
-                      % fname)
+    mode = 'a'
+    if op.isfile(fname) and overwrite:
+        mode = 'w'
     if not isinstance(title, string_types):
         raise ValueError('title must be a string')
     comp_kw = dict()
     if compression > 0:
         comp_kw = dict(compression='gzip', compression_opts=compression)
-    with h5py.File(fname, mode='w') as fid:
+    with h5py.File(fname, mode=mode) as fid:
+        if title in fid.keys():
+            if not update_title:
+                raise IOError('title %s already exists, use update_title=True'
+                              'to override')
+            else:
+                del fid[title]
         _triage_write(title, data, fid, comp_kw, str(type(data)))
 
 
