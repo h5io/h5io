@@ -38,15 +38,15 @@ def test_hdf5():
                   overwrite=True)
     assert_raises(TypeError, write_hdf5, test_file, object, overwrite=True)
 
-    write_hdf5(test_file, 1, title='first')
-    write_hdf5(test_file, 2, title='second')
+    write_hdf5(test_file, 1, title='first', overwrite=True)
+    write_hdf5(test_file, 2, title='second', overwrite='update')
     assert_equal(read_hdf5(test_file, title='first'), 1)
     assert_equal(read_hdf5(test_file, title='second'), 2)
     assert_raises(IOError, write_hdf5, test_file, 3, title='second')
-    write_hdf5(test_file, 3, title='second', update_title=True)
+    write_hdf5(test_file, 3, title='second', overwrite='update')
     assert_equal(read_hdf5(test_file, title='second'), 3)
 
-    write_hdf5(test_file, 5, title='second', update_title=True, compression=5)
+    write_hdf5(test_file, 5, title='second', overwrite='update', compression=5)
     assert_equal(read_hdf5(test_file, title='second'), 5)
 
 
@@ -54,7 +54,7 @@ def test_path_support():
     tempdir = _TempDir()
     test_file = op.join(tempdir, 'test.hdf5')
     write_hdf5(test_file, 1, title='first')
-    write_hdf5(test_file, 2, title='second/third')
+    write_hdf5(test_file, 2, title='second/third', overwrite='update')
     assert_raises(ValueError, read_hdf5, test_file, title='second')
     assert_equal(read_hdf5(test_file, 'first'), 1)
     assert_equal(read_hdf5(test_file, 'second/third'), 2)

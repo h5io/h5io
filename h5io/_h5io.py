@@ -48,7 +48,7 @@ def _create_titled_dataset(root, key, title, data, comp_kw=None):
 
 
 def write_hdf5(fname, data, overwrite=False, compression=4,
-               title='h5io', update_title=False):
+               title='h5io'):
     """Write python object to HDF5 format using h5py
 
     Parameters
@@ -59,21 +59,23 @@ def write_hdf5(fname, data, overwrite=False, compression=4,
         Object to write. Can be of any of these types:
             {ndarray, dict, list, tuple, int, float, str}
         Note that dict objects must only have ``str`` keys.
-    overwrite : bool
-        If True, overwrite file (if it exists).
+    overwrite : True | False | 'update'
+        If True, overwrite file (if it exists). If 'update', appends the title
+        to the file (or replace value if title exists).
     compression : int
         Compression level to use (0-9) to compress data using gzip.
     title : str
         The top-level directory name to use. Typically it is useful to make
         this your package name, e.g. ``'mnepython'``.
-    update_title : bool
-        If True, override value for title (if title exists). If False and title
-        exists and error will be raised.
     """
     h5py = _check_h5py()
-    mode = 'a'
-    if op.isfile(fname) and overwrite:
-        mode = 'w'
+    mode = 'w'
+    if op.isfile(fname):
+        if overwrite is False:
+            raise IOError('file "%s" exists, use overwrite=True to overwrite'
+                          % fname)
+        if overwrite is 'update':
+            mode = 'a'
     if not isinstance(title, string_types):
         raise ValueError('title must be a string')
     comp_kw = dict()
@@ -81,11 +83,7 @@ def write_hdf5(fname, data, overwrite=False, compression=4,
         comp_kw = dict(compression='gzip', compression_opts=compression)
     with h5py.File(fname, mode=mode) as fid:
         if title in fid:
-            if not update_title:
-                raise IOError('title %s already exists, use update_title=True'
-                              'to override')
-            else:
-                del fid[title]
+            del fid[title]
         _triage_write(title, data, fid, comp_kw, str(type(data)))
 
 
