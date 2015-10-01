@@ -71,11 +71,13 @@ def write_hdf5(fname, data, overwrite=False, compression=4,
     h5py = _check_h5py()
     mode = 'w'
     if op.isfile(fname):
-        if overwrite is False:
+        if isinstance(overwrite, string_types):
+            if overwrite != 'update':
+                raise ValueError('overwrite must be "update" or a bool')
+            mode = 'a'
+        elif not overwrite:
             raise IOError('file "%s" exists, use overwrite=True to overwrite'
                           % fname)
-        if overwrite is 'update':
-            mode = 'a'
     if not isinstance(title, string_types):
         raise ValueError('title must be a string')
     comp_kw = dict()
