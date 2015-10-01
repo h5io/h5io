@@ -59,8 +59,9 @@ def write_hdf5(fname, data, overwrite=False, compression=4,
         Object to write. Can be of any of these types:
             {ndarray, dict, list, tuple, int, float, str}
         Note that dict objects must only have ``str`` keys.
-    overwrite : bool
-        If True, overwrite file (if it exists).
+    overwrite : True | False | 'update'
+        If True, overwrite file (if it exists). If 'update', appends the title
+        to the file (or replace value if title exists).
     compression : int
         Compression level to use (0-9) to compress data using gzip.
     title : str
@@ -68,15 +69,23 @@ def write_hdf5(fname, data, overwrite=False, compression=4,
         this your package name, e.g. ``'mnepython'``.
     """
     h5py = _check_h5py()
-    if op.isfile(fname) and not overwrite:
-        raise IOError('file "%s" exists, use overwrite=True to overwrite'
-                      % fname)
+    mode = 'w'
+    if op.isfile(fname):
+        if isinstance(overwrite, string_types):
+            if overwrite != 'update':
+                raise ValueError('overwrite must be "update" or a bool')
+            mode = 'a'
+        elif not overwrite:
+            raise IOError('file "%s" exists, use overwrite=True to overwrite'
+                          % fname)
     if not isinstance(title, string_types):
         raise ValueError('title must be a string')
     comp_kw = dict()
     if compression > 0:
         comp_kw = dict(compression='gzip', compression_opts=compression)
-    with h5py.File(fname, mode='w') as fid:
+    with h5py.File(fname, mode=mode) as fid:
+        if title in fid:
+            del fid[title]
         _triage_write(title, data, fid, comp_kw, str(type(data)))
 
 
@@ -149,8 +158,11 @@ def read_hdf5(fname, title='h5io'):
     if not isinstance(title, string_types):
         raise ValueError('title must be a string')
     with h5py.File(fname, mode='r') as fid:
-        if title not in fid.keys():
+        if title not in fid:
             raise ValueError('no "%s" data found' % title)
+        if isinstance(fid[title], h5py.Group):
+            if 'TITLE' not in fid[title].attrs:
+                raise ValueError('no "%s" data found' % title)
         data = _triage_read(fid[title])
     return data
 
