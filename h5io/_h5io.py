@@ -50,7 +50,7 @@ def _create_titled_dataset(root, key, title, data, comp_kw=None):
 def _create_pandas_dataset(root, key, title, data, comp_kw=None):
     """Helper to store a dataframe in a h5io dataset"""
     comp_kw = {} if comp_kw is None else comp_kw
-    data.to_hdf(root.filename, root.name+'/'+key)
+    data.to_hdf(root.filename, '/'.join([root.name, key]))
 
 
 def write_hdf5(fname, data, overwrite=False, compression=4,
@@ -93,14 +93,18 @@ def write_hdf5(fname, data, overwrite=False, compression=4,
         if title in fid:
             del fid[title]
         cleanup_data = _triage_write(title, data, fid, comp_kw, str(type(data)))
-    for rootname, key, title, value in cleanup_data:
+
+    # Will not be empty if any extra data to be written
+    for data in cleanup_data:
+        # In case different extra I/O needs different inputs
+        title = data.keys()[0]
         if title == 'dataframe':
+            rootname, key, value = data[title]
             _create_pandas_dataset(fname, rootname+'/'+key, title, value)
 
         # Do pandas writing
 
-def _triage_write(key, value, root, comp_kw, where):
-    post_io = []
+def _triage_write(key, value, root, comp_kw, where, cleanup_data=False):
     if isinstance(value, dict):
         sub_root = _create_titled_group(root, key, 'dict')
         for key, sub_value in value.items():
@@ -132,10 +136,6 @@ def _triage_write(key, value, root, comp_kw, where):
         _create_titled_dataset(root, key, title, value, comp_kw)
     elif isinstance(value, np.ndarray):
         _create_titled_dataset(root, key, 'ndarray', value)
-    elif isinstance(value, pd.DataFrame):
-        title = 'dataframe'
-        rootname = root.name
-        post_io.append((rootname, key, 'dataframe', value))
     elif sparse is not None and isinstance(value, sparse.csc_matrix):
         sub_root = _create_titled_group(root, key, 'csc_matrix')
         _triage_write('data', value.data, sub_root, comp_kw,
@@ -145,8 +145,16 @@ def _triage_write(key, value, root, comp_kw, where):
         _triage_write('indptr', value.indptr, sub_root, comp_kw,
                       where + '.csc_matrix_indptr')
     else:
+        try:
+            from pandas import DataFrame
+            if isinstance(value, DataFrame):
+                title = 'dataframe'
+                rootname = root.name
+                cleanup_data.append({title: (rootname, key, value)})
+        except ImportError:
+            print("Skipping optional packages...")
         raise TypeError('unsupported type %s (in %s)' % (type(value), where))
-
+    return cleanup_data
 
 ##############################################################################
 # READING
