@@ -47,6 +47,12 @@ def _create_titled_dataset(root, key, title, data, comp_kw=None):
     return out
 
 
+def _create_pandas_dataset(root, key, title, data, comp_kw=None):
+    """Helper to store a dataframe in a h5io dataset"""
+    comp_kw = {} if comp_kw is None else comp_kw
+    data.to_hdf(root.filename, root.name+'/'+key)
+
+
 def write_hdf5(fname, data, overwrite=False, compression=4,
                title='h5io'):
     """Write python object to HDF5 format using h5py
@@ -86,10 +92,15 @@ def write_hdf5(fname, data, overwrite=False, compression=4,
     with h5py.File(fname, mode=mode) as fid:
         if title in fid:
             del fid[title]
-        _triage_write(title, data, fid, comp_kw, str(type(data)))
+        cleanup_data = _triage_write(title, data, fid, comp_kw, str(type(data)))
+    for rootname, key, title, value in cleanup_data:
+        if title == 'dataframe':
+            _create_pandas_dataset(fname, rootname+'/'+key, title, value)
 
+        # Do pandas writing
 
 def _triage_write(key, value, root, comp_kw, where):
+    post_io = []
     if isinstance(value, dict):
         sub_root = _create_titled_group(root, key, 'dict')
         for key, sub_value in value.items():
@@ -121,6 +132,10 @@ def _triage_write(key, value, root, comp_kw, where):
         _create_titled_dataset(root, key, title, value, comp_kw)
     elif isinstance(value, np.ndarray):
         _create_titled_dataset(root, key, 'ndarray', value)
+    elif isinstance(value, pd.DataFrame):
+        title = 'dataframe'
+        rootname = root.name
+        post_io.append((rootname, key, 'dataframe', value))
     elif sparse is not None and isinstance(value, sparse.csc_matrix):
         sub_root = _create_titled_group(root, key, 'csc_matrix')
         _triage_write('data', value.data, sub_root, comp_kw,
