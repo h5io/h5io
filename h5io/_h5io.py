@@ -150,12 +150,16 @@ def _triage_write(key, value, root, comp_kw, where, cleanup_data=None):
         cleanup_data = _triage_write('indptr', value.indptr, sub_root, comp_kw,
                       where + '.csc_matrix_indptr', cleanup_data=cleanup_data)
     else:
-        from pandas import DataFrame
-        if isinstance(value, DataFrame):
-            title = 'pd_dataframe'
-            rootname = root.name
-            cleanup_data.append({title: (rootname, key, value)})
-        else:
+        try:
+            from pandas import DataFrame, Series
+            if isinstance(value, (DataFrame, Series)):
+                if isinstance(value, DataFrame):
+                    title = 'pd_dataframe'
+                else:
+                    title = 'pd_series'
+                rootname = root.name
+                cleanup_data.append({title: (rootname, key, value)})
+        except ImportError:
             raise TypeError('unsupported type %s (in %s)' % (type(value), where))
     return cleanup_data
 
@@ -221,6 +225,15 @@ def _triage_read(node):
             data = sparse.csc_matrix((_triage_read(node['data']),
                                       _triage_read(node['indices']),
                                       _triage_read(node['indptr'])))
+        elif type_str in ['pd_dataframe', 'pd_series']:
+            try:
+                from pandas import read_hdf
+            except ImportError:
+                err_str = 'pandas data found but no pandas installation exists'
+                raise ImportError(err_str)
+            rootname = node.name
+            filename = node.file.filename
+            data = read_hdf(filename, rootname, mode='r')
         else:
             raise NotImplementedError('Unknown group type: {0}'
                                       ''.format(type_str))
