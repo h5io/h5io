@@ -22,8 +22,10 @@ def test_hdf5():
     tempdir = _TempDir()
     test_file = op.join(tempdir, 'test.hdf5')
     sp = np.eye(3) if sparse is None else sparse.eye(3, 3, format='csc')
-    df = np.eye(3) if DataFrame is type(None) else DataFrame(np.eye(3))
-    sr = np.eye(3) if Series is type(None) else Series(np.random.randn(3))
+    df = np.eye(3) if isinstance(DataFrame, type(None)) else DataFrame(
+        np.eye(3))
+    sr = np.eye(3) if isinstance(Series, type(None)) else Series(
+        np.random.randn(3))
     sp[2, 2] = 2
     x = dict(a=dict(b=np.zeros(3)), c=np.zeros(2, np.complex128),
              d=[dict(e=(1, -2., 'hello', u'goodbyeu\u2764')), None], f=sp,
@@ -84,7 +86,7 @@ def test_object_diff():
         assert_true('shape mismatch' in object_diff(a, b))
         c = sparse.coo_matrix([[1, 1]])
         assert_true('1 element' in object_diff(b, c))
-    if DataFrame is not type(None):
+    if not isinstance(DataFrame, type(None)):
         for ob_type in (DataFrame, Series):
             a = ob_type([1])
             b = ob_type([1, 2])
