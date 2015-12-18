@@ -17,7 +17,7 @@ except ImportError:
 try:
     from pandas import DataFrame, Series
 except ImportError:
-    DataFrame = Series = type(None)
+    DataFrame = Series = None
 
 # Adapted from six
 PY3 = sys.version_info[0] == 3
@@ -232,7 +232,7 @@ def _triage_read(node):
                                       _triage_read(node['indptr'])))
         elif type_str in ['pd_dataframe', 'pd_series']:
             from pandas import read_hdf
-            if DataFrame is None:
+            if isinstance(DataFrame, type(None)):
                 err_str = 'pandas data found but no pandas installation exists'
                 raise ImportError(err_str)
             rootname = node.name
