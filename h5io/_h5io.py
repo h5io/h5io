@@ -17,7 +17,7 @@ except ImportError:
 try:
     from pandas import DataFrame, Series
 except ImportError:
-    DataFrame = Series = None
+    DataFrame = Series = type(None)
 
 # Adapted from six
 PY3 = sys.version_info[0] == 3
