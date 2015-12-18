@@ -100,9 +100,9 @@ def write_hdf5(fname, data, overwrite=False, compression=4,
         if title in fid:
             del fid[title]
         cleanup_data = []
-        cleanup_data = _triage_write(title, data, fid, comp_kw,
-                                     str(type(data)),
-                                     cleanup_data=cleanup_data)
+        _triage_write(title, data, fid, comp_kw,
+                      str(type(data)),
+                      cleanup_data=cleanup_data)
 
     # Will not be empty if any extra data to be written
     for data in cleanup_data:
@@ -113,21 +113,20 @@ def write_hdf5(fname, data, overwrite=False, compression=4,
             _create_pandas_dataset(fname, rootname, key, title, value)
 
 
-def _triage_write(key, value, root, comp_kw, where, cleanup_data=None):
-    cleanup_data = [] if cleanup_data is None else cleanup_data
+def _triage_write(key, value, root, comp_kw, where, cleanup_data=[]):
     if isinstance(value, dict):
         sub_root = _create_titled_group(root, key, 'dict')
         for key, sub_value in value.items():
             if not isinstance(key, string_types):
                 raise TypeError('All dict keys must be strings')
-            cleanup_data = _triage_write(
+            _triage_write(
                 'key_{0}'.format(key), sub_value, sub_root, comp_kw,
                 where + '["%s"]' % key, cleanup_data=cleanup_data)
     elif isinstance(value, (list, tuple)):
         title = 'list' if isinstance(value, list) else 'tuple'
         sub_root = _create_titled_group(root, key, title)
         for vi, sub_value in enumerate(value):
-            cleanup_data = _triage_write(
+            _triage_write(
                 'idx_{0}'.format(vi), sub_value, sub_root, comp_kw,
                 where + '[%s]' % vi, cleanup_data=cleanup_data)
     elif isinstance(value, type(None)):
@@ -150,15 +149,12 @@ def _triage_write(key, value, root, comp_kw, where, cleanup_data=None):
         _create_titled_dataset(root, key, 'ndarray', value)
     elif sparse is not None and isinstance(value, sparse.csc_matrix):
         sub_root = _create_titled_group(root, key, 'csc_matrix')
-        cleanup_data = _triage_write(
-            'data', value.data, sub_root, comp_kw,
-            where + '.csc_matrix_data', cleanup_data=cleanup_data)
-        cleanup_data = _triage_write(
-            'indices', value.indices, sub_root, comp_kw,
-            where + '.csc_matrix_indices', cleanup_data=cleanup_data)
-        cleanup_data = _triage_write(
-            'indptr', value.indptr, sub_root, comp_kw,
-            where + '.csc_matrix_indptr', cleanup_data=cleanup_data)
+        _triage_write('data', value.data, sub_root, comp_kw,
+                      where + '.csc_matrix_data', cleanup_data=cleanup_data)
+        _triage_write('indices', value.indices, sub_root, comp_kw,
+                      where + '.csc_matrix_indices', cleanup_data=cleanup_data)
+        _triage_write('indptr', value.indptr, sub_root, comp_kw,
+                      where + '.csc_matrix_indptr', cleanup_data=cleanup_data)
     else:
         if isinstance(value, (DataFrame, Series)):
             if isinstance(value, DataFrame):
@@ -330,6 +326,16 @@ def object_diff(a, b, pre=''):
             if c.nnz > 0:
                 out += pre + (' sparse matrix a and b differ on %s '
                               'elements' % c.nnz)
+    elif isinstance(a, (DataFrame, Series)):
+        if b.shape != a.shape:
+            out += pre + (' pandas values a and b shape mismatch'
+                          '(%s vs %s)' % (a.shape, b.shape))
+        else:
+            c = a.values - b.values
+            nzeros = np.sum(c != 0)
+            if nzeros > 0:
+                out += pre + (' pandas values a and b differ on %s '
+                              'elements' % nzeros)
     else:
         raise RuntimeError(pre + ': unsupported type %s (%s)' % (type(a), a))
     return out

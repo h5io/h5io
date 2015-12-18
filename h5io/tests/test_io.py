@@ -8,6 +8,11 @@ try:
 except ImportError:
     sparse = None
 
+try:
+    from pandas import DataFrame, Series
+except ImportError:
+    DataFrame = Series = None
+
 from h5io import write_hdf5, read_hdf5, _TempDir, object_diff
 
 
@@ -17,9 +22,12 @@ def test_hdf5():
     tempdir = _TempDir()
     test_file = op.join(tempdir, 'test.hdf5')
     sp = np.eye(3) if sparse is None else sparse.eye(3, 3, format='csc')
+    df = np.eye(3) if DataFrame is None else DataFrame(np.eye(3))
+    sr = np.eye(3) if Series is None else Series(np.random.randn(3))
     sp[2, 2] = 2
     x = dict(a=dict(b=np.zeros(3)), c=np.zeros(2, np.complex128),
-             d=[dict(e=(1, -2., 'hello', u'goodbyeu\u2764')), None], f=sp)
+             d=[dict(e=(1, -2., 'hello', u'goodbyeu\u2764')), None], f=sp,
+             g=dict(dfa=df, srb=sr))
     write_hdf5(test_file, 1)
     assert_equal(read_hdf5(test_file), 1)
     assert_raises(IOError, write_hdf5, test_file, x)  # file exists
@@ -76,4 +84,11 @@ def test_object_diff():
         assert_true('shape mismatch' in object_diff(a, b))
         c = sparse.coo_matrix([[1, 1]])
         assert_true('1 element' in object_diff(b, c))
+    if DataFrame is not None:
+        for ob_type in (DataFrame, Series):
+            a = ob_type([1])
+            b = ob_type([1, 2])
+            assert_true('shape mismatch' in object_diff(a, b))
+            c = ob_type([1, 3])
+            assert_true('1 element' in object_diff(b, c))
     assert_raises(RuntimeError, object_diff, object, object)
