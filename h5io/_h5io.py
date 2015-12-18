@@ -107,7 +107,7 @@ def write_hdf5(fname, data, overwrite=False, compression=4,
     # Will not be empty if any extra data to be written
     for data in cleanup_data:
         # In case different extra I/O needs different inputs
-        title = data.keys()[0]
+        title = list(data.keys())[0]
         if title in ['pd_dataframe', 'pd_series']:
             rootname, key, value = data[title]
             _create_pandas_dataset(fname, rootname, key, title, value)
