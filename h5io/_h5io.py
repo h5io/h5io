@@ -166,7 +166,6 @@ def _triage_write(key, value, root, comp_kw, where, cleanup_data=[]):
         else:
             err_str = 'unsupported type %s (in %s)' % (type(value), where)
             raise TypeError(err_str)
-    return cleanup_data
 
 ##############################################################################
 # READING
