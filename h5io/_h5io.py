@@ -14,6 +14,11 @@ try:
 except ImportError:
     sparse = None
 
+try:
+    from pandas import DataFrame, Series
+except ImportError:
+    DataFrame = Series = None
+
 # Adapted from six
 PY3 = sys.version_info[0] == 3
 text_type = str if PY3 else unicode  # noqa
@@ -155,16 +160,14 @@ def _triage_write(key, value, root, comp_kw, where, cleanup_data=None):
             'indptr', value.indptr, sub_root, comp_kw,
             where + '.csc_matrix_indptr', cleanup_data=cleanup_data)
     else:
-        try:
-            from pandas import DataFrame, Series
-            if isinstance(value, (DataFrame, Series)):
-                if isinstance(value, DataFrame):
-                    title = 'pd_dataframe'
-                else:
-                    title = 'pd_series'
-                rootname = root.name
-                cleanup_data.append({title: (rootname, key, value)})
-        except ImportError:
+        if isinstance(value, (DataFrame, Series)):
+            if isinstance(value, DataFrame):
+                title = 'pd_dataframe'
+            else:
+                title = 'pd_series'
+            rootname = root.name
+            cleanup_data.append({title: (rootname, key, value)})
+        else:
             err_str = 'unsupported type %s (in %s)' % (type(value), where)
             raise TypeError(err_str)
     return cleanup_data
@@ -233,9 +236,8 @@ def _triage_read(node):
                                       _triage_read(node['indices']),
                                       _triage_read(node['indptr'])))
         elif type_str in ['pd_dataframe', 'pd_series']:
-            try:
-                from pandas import read_hdf
-            except ImportError:
+            from pandas import read_hdf
+            if DataFrame is None:
                 err_str = 'pandas data found but no pandas installation exists'
                 raise ImportError(err_str)
             rootname = node.name
