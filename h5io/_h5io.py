@@ -107,6 +107,7 @@ def write_hdf5(fname, data, overwrite=False, compression=4,
             rootname, key, value = data[title]
             _create_pandas_dataset(fname, rootname, key, title, value)
 
+
 def _triage_write(key, value, root, comp_kw, where, cleanup_data=None):
     cleanup_data = [] if cleanup_data is None else cleanup_data
     if isinstance(value, dict):
@@ -121,8 +122,9 @@ def _triage_write(key, value, root, comp_kw, where, cleanup_data=None):
         title = 'list' if isinstance(value, list) else 'tuple'
         sub_root = _create_titled_group(root, key, title)
         for vi, sub_value in enumerate(value):
-            cleanup_data = _triage_write('idx_{0}'.format(vi), sub_value, sub_root, comp_kw,
-                          where + '[%s]' % vi, cleanup_data=cleanup_data)
+            cleanup_data = _triage_write(
+                'idx_{0}'.format(vi), sub_value, sub_root, comp_kw,
+                where + '[%s]' % vi, cleanup_data=cleanup_data)
     elif isinstance(value, type(None)):
         _create_titled_dataset(root, key, 'None', [False])
     elif isinstance(value, (int, float)):
@@ -143,12 +145,15 @@ def _triage_write(key, value, root, comp_kw, where, cleanup_data=None):
         _create_titled_dataset(root, key, 'ndarray', value)
     elif sparse is not None and isinstance(value, sparse.csc_matrix):
         sub_root = _create_titled_group(root, key, 'csc_matrix')
-        cleanup_data = _triage_write('data', value.data, sub_root, comp_kw,
-                      where + '.csc_matrix_data', cleanup_data=cleanup_data)
-        cleanup_data = _triage_write('indices', value.indices, sub_root, comp_kw,
-                      where + '.csc_matrix_indices', cleanup_data=cleanup_data)
-        cleanup_data = _triage_write('indptr', value.indptr, sub_root, comp_kw,
-                      where + '.csc_matrix_indptr', cleanup_data=cleanup_data)
+        cleanup_data = _triage_write(
+            'data', value.data, sub_root, comp_kw,
+            where + '.csc_matrix_data', cleanup_data=cleanup_data)
+        cleanup_data = _triage_write(
+            'indices', value.indices, sub_root, comp_kw,
+            where + '.csc_matrix_indices', cleanup_data=cleanup_data)
+        cleanup_data = _triage_write(
+            'indptr', value.indptr, sub_root, comp_kw,
+            where + '.csc_matrix_indptr', cleanup_data=cleanup_data)
     else:
         try:
             from pandas import DataFrame, Series
@@ -160,11 +165,13 @@ def _triage_write(key, value, root, comp_kw, where, cleanup_data=None):
                 rootname = root.name
                 cleanup_data.append({title: (rootname, key, value)})
         except ImportError:
-            raise TypeError('unsupported type %s (in %s)' % (type(value), where))
+            err_str = 'unsupported type %s (in %s)' % (type(value), where)
+            raise TypeError(err_str)
     return cleanup_data
 
 ##############################################################################
 # READING
+
 
 def read_hdf5(fname, title='h5io'):
     """Read python object from HDF5 format using h5py
