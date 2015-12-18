@@ -11,7 +11,7 @@ except ImportError:
 try:
     from pandas import DataFrame, Series
 except ImportError:
-    DataFrame = Series = None
+    DataFrame = Series = type(None)
 
 from h5io import write_hdf5, read_hdf5, _TempDir, object_diff
 
