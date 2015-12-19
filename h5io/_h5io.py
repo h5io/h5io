@@ -14,6 +14,11 @@ try:
 except ImportError:
     sparse = None
 
+try:
+    from pandas import DataFrame, Series
+except ImportError:
+    DataFrame = Series = type(None)
+
 # Adapted from six
 PY3 = sys.version_info[0] == 3
 text_type = str if PY3 else unicode  # noqa
@@ -45,6 +50,14 @@ def _create_titled_dataset(root, key, title, data, comp_kw=None):
     out = root.create_dataset(key, data=data, **comp_kw)
     out.attrs['TITLE'] = title
     return out
+
+
+def _create_pandas_dataset(fname, root, key, title, data):
+    h5py = _check_h5py()
+    rootpath = '/'.join([root, key])
+    data.to_hdf(fname, rootpath)
+    with h5py.File(fname, mode='a') as fid:
+        fid[rootpath].attrs['TITLE'] = 'pd_dataframe'
 
 
 def write_hdf5(fname, data, overwrite=False, compression=4,
@@ -86,23 +99,36 @@ def write_hdf5(fname, data, overwrite=False, compression=4,
     with h5py.File(fname, mode=mode) as fid:
         if title in fid:
             del fid[title]
-        _triage_write(title, data, fid, comp_kw, str(type(data)))
+        cleanup_data = []
+        _triage_write(title, data, fid, comp_kw,
+                      str(type(data)),
+                      cleanup_data=cleanup_data)
+
+    # Will not be empty if any extra data to be written
+    for data in cleanup_data:
+        # In case different extra I/O needs different inputs
+        title = list(data.keys())[0]
+        if title in ['pd_dataframe', 'pd_series']:
+            rootname, key, value = data[title]
+            _create_pandas_dataset(fname, rootname, key, title, value)
 
 
-def _triage_write(key, value, root, comp_kw, where):
+def _triage_write(key, value, root, comp_kw, where, cleanup_data=[]):
     if isinstance(value, dict):
         sub_root = _create_titled_group(root, key, 'dict')
         for key, sub_value in value.items():
             if not isinstance(key, string_types):
                 raise TypeError('All dict keys must be strings')
-            _triage_write('key_{0}'.format(key), sub_value, sub_root, comp_kw,
-                          where + '["%s"]' % key)
+            _triage_write(
+                'key_{0}'.format(key), sub_value, sub_root, comp_kw,
+                where + '["%s"]' % key, cleanup_data=cleanup_data)
     elif isinstance(value, (list, tuple)):
         title = 'list' if isinstance(value, list) else 'tuple'
         sub_root = _create_titled_group(root, key, title)
         for vi, sub_value in enumerate(value):
-            _triage_write('idx_{0}'.format(vi), sub_value, sub_root, comp_kw,
-                          where + '[%s]' % vi)
+            _triage_write(
+                'idx_{0}'.format(vi), sub_value, sub_root, comp_kw,
+                where + '[%s]' % vi, cleanup_data=cleanup_data)
     elif isinstance(value, type(None)):
         _create_titled_dataset(root, key, 'None', [False])
     elif isinstance(value, (int, float)):
@@ -124,17 +150,26 @@ def _triage_write(key, value, root, comp_kw, where):
     elif sparse is not None and isinstance(value, sparse.csc_matrix):
         sub_root = _create_titled_group(root, key, 'csc_matrix')
         _triage_write('data', value.data, sub_root, comp_kw,
-                      where + '.csc_matrix_data')
+                      where + '.csc_matrix_data', cleanup_data=cleanup_data)
         _triage_write('indices', value.indices, sub_root, comp_kw,
-                      where + '.csc_matrix_indices')
+                      where + '.csc_matrix_indices', cleanup_data=cleanup_data)
         _triage_write('indptr', value.indptr, sub_root, comp_kw,
-                      where + '.csc_matrix_indptr')
+                      where + '.csc_matrix_indptr', cleanup_data=cleanup_data)
     else:
-        raise TypeError('unsupported type %s (in %s)' % (type(value), where))
-
+        if isinstance(value, (DataFrame, Series)):
+            if isinstance(value, DataFrame):
+                title = 'pd_dataframe'
+            else:
+                title = 'pd_series'
+            rootname = root.name
+            cleanup_data.append({title: (rootname, key, value)})
+        else:
+            err_str = 'unsupported type %s (in %s)' % (type(value), where)
+            raise TypeError(err_str)
 
 ##############################################################################
 # READING
+
 
 def read_hdf5(fname, title='h5io'):
     """Read python object from HDF5 format using h5py
@@ -195,6 +230,14 @@ def _triage_read(node):
             data = sparse.csc_matrix((_triage_read(node['data']),
                                       _triage_read(node['indices']),
                                       _triage_read(node['indptr'])))
+        elif type_str in ['pd_dataframe', 'pd_series']:
+            from pandas import read_hdf
+            if isinstance(DataFrame, type(None)):
+                err_str = 'pandas data found but no pandas installation exists'
+                raise ImportError(err_str)
+            rootname = node.name
+            filename = node.file.filename
+            data = read_hdf(filename, rootname, mode='r')
         else:
             raise NotImplementedError('Unknown group type: {0}'
                                       ''.format(type_str))
@@ -282,6 +325,16 @@ def object_diff(a, b, pre=''):
             if c.nnz > 0:
                 out += pre + (' sparse matrix a and b differ on %s '
                               'elements' % c.nnz)
+    elif isinstance(a, (DataFrame, Series)):
+        if b.shape != a.shape:
+            out += pre + (' pandas values a and b shape mismatch'
+                          '(%s vs %s)' % (a.shape, b.shape))
+        else:
+            c = a.values - b.values
+            nzeros = np.sum(c != 0)
+            if nzeros > 0:
+                out += pre + (' pandas values a and b differ on %s '
+                              'elements' % nzeros)
     else:
         raise RuntimeError(pre + ': unsupported type %s (%s)' % (type(a), a))
     return out
