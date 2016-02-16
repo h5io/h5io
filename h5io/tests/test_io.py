@@ -47,6 +47,13 @@ def test_hdf5():
     assert_raises(TypeError, write_hdf5, test_file, {1: 'foo'},
                   overwrite=True)
     assert_raises(TypeError, write_hdf5, test_file, object, overwrite=True)
+    # special_chars
+    spec_dict = {'first/second': 'third'}
+    assert_raises(ValueError, write_hdf5, test_file, spec_dict, overwrite=True)
+    assert_raises(ValueError, write_hdf5, test_file, spec_dict, overwrite=True,
+                  slash='brains')
+    write_hdf5(test_file, spec_dict, overwrite=True, slash='replace')
+    assert_equal(read_hdf5(test_file).keys(), spec_dict.keys())
 
     write_hdf5(test_file, 1, title='first', overwrite=True)
     write_hdf5(test_file, 2, title='second', overwrite='update')
