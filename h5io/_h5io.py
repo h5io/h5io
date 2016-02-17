@@ -191,7 +191,7 @@ def _triage_write(key, value, root, comp_kw, where,
 # READING
 
 
-def read_hdf5(fname, title='h5io'):
+def read_hdf5(fname, title='h5io', slash='ignore'):
     """Read python object from HDF5 format using h5py
 
     Parameters
@@ -201,6 +201,10 @@ def read_hdf5(fname, title='h5io'):
     title : str
         The top-level directory name to use. Typically it is useful to make
         this your package name, e.g. ``'mnepython'``.
+    slash : 'ignore' | 'replace'
+        Whether to replace the string {FWDSLASH} with the value /. This does
+        not apply to the top level name (title). If 'ignore', nothing will be
+        replaced.
 
     Returns
     -------
@@ -218,11 +222,13 @@ def read_hdf5(fname, title='h5io'):
         if isinstance(fid[title], h5py.Group):
             if 'TITLE' not in fid[title].attrs:
                 raise ValueError('no "%s" data found' % title)
-        data = _triage_read(fid[title])
+        data = _triage_read(fid[title], slash=slash)
     return data
 
 
-def _triage_read(node):
+def _triage_read(node, slash='ignore'):
+    if slash not in ['ignore', 'replace']:
+        raise ValueError("slash must be one of 'replace', 'ignore'")
     h5py = _check_h5py()
     type_str = node.attrs['TITLE']
     if isinstance(type_str, bytes):
@@ -231,9 +237,10 @@ def _triage_read(node):
         if type_str == 'dict':
             data = dict()
             for key, subnode in node.items():
-                for key_spec, val_spec in special_chars.items():
-                    key = key.replace(key_spec, val_spec)
-                data[key[4:]] = _triage_read(subnode)
+                if slash == 'replace':
+                    for key_spec, val_spec in special_chars.items():
+                        key = key.replace(key_spec, val_spec)
+                data[key[4:]] = _triage_read(subnode, slash=slash)
         elif type_str in ['list', 'tuple']:
             data = list()
             ii = 0
@@ -241,7 +248,7 @@ def _triage_read(node):
                 subnode = node.get('idx_{0}'.format(ii), None)
                 if subnode is None:
                     break
-                data.append(_triage_read(subnode))
+                data.append(_triage_read(subnode, slash=slash))
                 ii += 1
             assert len(data) == ii
             data = tuple(data) if type_str == 'tuple' else data
@@ -249,9 +256,11 @@ def _triage_read(node):
         elif type_str == 'csc_matrix':
             if sparse is None:
                 raise RuntimeError('scipy must be installed to read this data')
-            data = sparse.csc_matrix((_triage_read(node['data']),
-                                      _triage_read(node['indices']),
-                                      _triage_read(node['indptr'])))
+            data = sparse.csc_matrix((_triage_read(node['data'], slash=slash),
+                                      _triage_read(node['indices'],
+                                                   slash=slash),
+                                      _triage_read(node['indptr'],
+                                                   slash=slash)))
         elif type_str in ['pd_dataframe', 'pd_series']:
             from pandas import read_hdf
             if isinstance(DataFrame, type(None)):
