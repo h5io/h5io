@@ -47,6 +47,22 @@ def test_hdf5():
     assert_raises(TypeError, write_hdf5, test_file, {1: 'foo'},
                   overwrite=True)
     assert_raises(TypeError, write_hdf5, test_file, object, overwrite=True)
+    # special_chars
+    spec_dict = {'first/second': 'third'}
+    assert_raises(ValueError, write_hdf5, test_file, spec_dict, overwrite=True)
+    assert_raises(ValueError, write_hdf5, test_file, spec_dict, overwrite=True,
+                  slash='brains')
+    write_hdf5(test_file, spec_dict, overwrite=True, slash='replace')
+    assert_equal(
+        read_hdf5(test_file, slash='replace').keys(), spec_dict.keys())
+    in_keys = list(read_hdf5(test_file, slash='ignore').keys())
+    assert_true('{FWDSLASH}' in in_keys[0])
+    assert_raises(ValueError, read_hdf5, test_file, slash='brains')
+    # Testing that title slashes aren't replaced
+    write_hdf5(
+        test_file, spec_dict, title='one/two', overwrite=True, slash='replace')
+    assert_equal(read_hdf5(test_file, title='one/two', slash='replace').keys(),
+                 spec_dict.keys())
 
     write_hdf5(test_file, 1, title='first', overwrite=True)
     write_hdf5(test_file, 2, title='second', overwrite='update')

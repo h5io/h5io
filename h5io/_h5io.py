@@ -24,6 +24,8 @@ PY3 = sys.version_info[0] == 3
 text_type = str if PY3 else unicode  # noqa
 string_types = str if PY3 else basestring  # noqa
 
+special_chars = {'{FWDSLASH}': '/'}
+
 
 ##############################################################################
 # WRITING
@@ -61,7 +63,7 @@ def _create_pandas_dataset(fname, root, key, title, data):
 
 
 def write_hdf5(fname, data, overwrite=False, compression=4,
-               title='h5io'):
+               title='h5io', slash='error'):
     """Write python object to HDF5 format using h5py
 
     Parameters
@@ -80,6 +82,10 @@ def write_hdf5(fname, data, overwrite=False, compression=4,
     title : str
         The top-level directory name to use. Typically it is useful to make
         this your package name, e.g. ``'mnepython'``.
+    slash : 'error' | 'replace'
+        Whether to replace forward-slashes ('/') in any key found nested within
+        keys in data. This does not apply to the top level name (title).
+        If 'error', '/' is not allowed in any lower-level keys.
     """
     h5py = _check_h5py()
     mode = 'w'
@@ -100,9 +106,8 @@ def write_hdf5(fname, data, overwrite=False, compression=4,
         if title in fid:
             del fid[title]
         cleanup_data = []
-        _triage_write(title, data, fid, comp_kw,
-                      str(type(data)),
-                      cleanup_data=cleanup_data)
+        _triage_write(title, data, fid, comp_kw, str(type(data)),
+                      cleanup_data=cleanup_data, slash=slash, title=title)
 
     # Will not be empty if any extra data to be written
     for data in cleanup_data:
@@ -113,7 +118,19 @@ def write_hdf5(fname, data, overwrite=False, compression=4,
             _create_pandas_dataset(fname, rootname, key, title, value)
 
 
-def _triage_write(key, value, root, comp_kw, where, cleanup_data=[]):
+def _triage_write(key, value, root, comp_kw, where,
+                  cleanup_data=[], slash='error', title=None):
+    if key != title and '/' in key:
+        if slash == 'error':
+            raise ValueError('Found a key with "/", '
+                             'this is not allowed if slash == error')
+        elif slash == 'replace':
+            # Auto-replace keys with proper values
+            for key_spec, val_spec in special_chars.items():
+                key = key.replace(val_spec, key_spec)
+        else:
+            raise ValueError("slash must be one of ['error', 'replace'")
+
     if isinstance(value, dict):
         sub_root = _create_titled_group(root, key, 'dict')
         for key, sub_value in value.items():
@@ -121,14 +138,14 @@ def _triage_write(key, value, root, comp_kw, where, cleanup_data=[]):
                 raise TypeError('All dict keys must be strings')
             _triage_write(
                 'key_{0}'.format(key), sub_value, sub_root, comp_kw,
-                where + '["%s"]' % key, cleanup_data=cleanup_data)
+                where + '["%s"]' % key, cleanup_data=cleanup_data, slash=slash)
     elif isinstance(value, (list, tuple)):
         title = 'list' if isinstance(value, list) else 'tuple'
         sub_root = _create_titled_group(root, key, title)
         for vi, sub_value in enumerate(value):
             _triage_write(
                 'idx_{0}'.format(vi), sub_value, sub_root, comp_kw,
-                where + '[%s]' % vi, cleanup_data=cleanup_data)
+                where + '[%s]' % vi, cleanup_data=cleanup_data, slash=slash)
     elif isinstance(value, type(None)):
         _create_titled_dataset(root, key, 'None', [False])
     elif isinstance(value, (int, float)):
@@ -150,11 +167,14 @@ def _triage_write(key, value, root, comp_kw, where, cleanup_data=[]):
     elif sparse is not None and isinstance(value, sparse.csc_matrix):
         sub_root = _create_titled_group(root, key, 'csc_matrix')
         _triage_write('data', value.data, sub_root, comp_kw,
-                      where + '.csc_matrix_data', cleanup_data=cleanup_data)
+                      where + '.csc_matrix_data', cleanup_data=cleanup_data,
+                      slash=slash)
         _triage_write('indices', value.indices, sub_root, comp_kw,
-                      where + '.csc_matrix_indices', cleanup_data=cleanup_data)
+                      where + '.csc_matrix_indices', cleanup_data=cleanup_data,
+                      slash=slash)
         _triage_write('indptr', value.indptr, sub_root, comp_kw,
-                      where + '.csc_matrix_indptr', cleanup_data=cleanup_data)
+                      where + '.csc_matrix_indptr', cleanup_data=cleanup_data,
+                      slash=slash)
     else:
         if isinstance(value, (DataFrame, Series)):
             if isinstance(value, DataFrame):
@@ -171,7 +191,7 @@ def _triage_write(key, value, root, comp_kw, where, cleanup_data=[]):
 # READING
 
 
-def read_hdf5(fname, title='h5io'):
+def read_hdf5(fname, title='h5io', slash='ignore'):
     """Read python object from HDF5 format using h5py
 
     Parameters
@@ -181,6 +201,10 @@ def read_hdf5(fname, title='h5io'):
     title : str
         The top-level directory name to use. Typically it is useful to make
         this your package name, e.g. ``'mnepython'``.
+    slash : 'ignore' | 'replace'
+        Whether to replace the string {FWDSLASH} with the value /. This does
+        not apply to the top level name (title). If 'ignore', nothing will be
+        replaced.
 
     Returns
     -------
@@ -198,11 +222,13 @@ def read_hdf5(fname, title='h5io'):
         if isinstance(fid[title], h5py.Group):
             if 'TITLE' not in fid[title].attrs:
                 raise ValueError('no "%s" data found' % title)
-        data = _triage_read(fid[title])
+        data = _triage_read(fid[title], slash=slash)
     return data
 
 
-def _triage_read(node):
+def _triage_read(node, slash='ignore'):
+    if slash not in ['ignore', 'replace']:
+        raise ValueError("slash must be one of 'replace', 'ignore'")
     h5py = _check_h5py()
     type_str = node.attrs['TITLE']
     if isinstance(type_str, bytes):
@@ -211,7 +237,10 @@ def _triage_read(node):
         if type_str == 'dict':
             data = dict()
             for key, subnode in node.items():
-                data[key[4:]] = _triage_read(subnode)
+                if slash == 'replace':
+                    for key_spec, val_spec in special_chars.items():
+                        key = key.replace(key_spec, val_spec)
+                data[key[4:]] = _triage_read(subnode, slash=slash)
         elif type_str in ['list', 'tuple']:
             data = list()
             ii = 0
@@ -219,7 +248,7 @@ def _triage_read(node):
                 subnode = node.get('idx_{0}'.format(ii), None)
                 if subnode is None:
                     break
-                data.append(_triage_read(subnode))
+                data.append(_triage_read(subnode, slash=slash))
                 ii += 1
             assert len(data) == ii
             data = tuple(data) if type_str == 'tuple' else data
@@ -227,9 +256,11 @@ def _triage_read(node):
         elif type_str == 'csc_matrix':
             if sparse is None:
                 raise RuntimeError('scipy must be installed to read this data')
-            data = sparse.csc_matrix((_triage_read(node['data']),
-                                      _triage_read(node['indices']),
-                                      _triage_read(node['indptr'])))
+            data = sparse.csc_matrix((_triage_read(node['data'], slash=slash),
+                                      _triage_read(node['indices'],
+                                                   slash=slash),
+                                      _triage_read(node['indptr'],
+                                                   slash=slash)))
         elif type_str in ['pd_dataframe', 'pd_series']:
             from pandas import read_hdf
             if isinstance(DataFrame, type(None)):
