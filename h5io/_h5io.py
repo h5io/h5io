@@ -73,7 +73,8 @@ def write_hdf5(fname, data, overwrite=False, compression=4,
     data : object
         Object to write. Can be of any of these types:
             {ndarray, dict, list, tuple, int, float, str}
-        Note that dict objects must only have ``str`` keys.
+        Note that dict objects must only have ``str`` keys. It is recommended
+        to use ndarrays where possible, as it is handled most efficiently.
     overwrite : True | False | 'update'
         If True, overwrite file (if it exists). If 'update', appends the title
         to the file (or replace value if title exists).
