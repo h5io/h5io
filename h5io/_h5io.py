@@ -155,6 +155,8 @@ def _triage_write(key, value, root, comp_kw, where,
         else:  # isinstance(value, float):
             title = 'float'
         _create_titled_dataset(root, key, title, np.atleast_1d(value))
+    elif isinstance(value, np.bool_):
+        _create_titled_dataset(root, key, 'np_bool_', np.atleast_1d(value))
     elif isinstance(value, string_types):
         if isinstance(value, text_type):  # unicode
             value = np.fromstring(value.encode('utf-8'), np.uint8)
@@ -278,6 +280,8 @@ def _triage_read(node, slash='ignore'):
     elif type_str in ('int', 'float'):
         cast = int if type_str == 'int' else float
         data = cast(np.array(node)[0])
+    elif type_str == 'np_bool_':
+        data = np.bool_(np.array(node)[0])
     elif type_str in ('unicode', 'ascii', 'str'):  # 'str' for backward compat
         decoder = 'utf-8' if type_str == 'unicode' else 'ASCII'
         cast = text_type if type_str == 'unicode' else str

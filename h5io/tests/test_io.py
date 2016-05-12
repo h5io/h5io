@@ -37,6 +37,8 @@ def test_hdf5():
     assert_raises(IOError, read_hdf5, test_file + 'FOO')  # not found
     xx = read_hdf5(test_file)
     assert_true(object_diff(x, xx) == '')  # no assert_equal, ugly output
+    write_hdf5(test_file, np.bool_(True), overwrite=True)
+    assert_equal(read_hdf5(test_file), np.bool_(True))
 
     # bad title
     assert_raises(ValueError, read_hdf5, test_file, title='nonexist')
