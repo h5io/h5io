@@ -22,14 +22,16 @@ def test_hdf5():
     tempdir = _TempDir()
     test_file = op.join(tempdir, 'test.hdf5')
     sp = np.eye(3) if sparse is None else sparse.eye(3, 3, format='csc')
+    sp_csr = np.eye(3) if sparse is None else sparse.eye(3, 3, format='csr')
     df = np.eye(3) if isinstance(DataFrame, type(None)) else DataFrame(
         np.eye(3))
     sr = np.eye(3) if isinstance(Series, type(None)) else Series(
         np.random.randn(3))
     sp[2, 2] = 2
+    sp_csr[2, 2] = 2
     x = dict(a=dict(b=np.zeros(3)), c=np.zeros(2, np.complex128),
              d=[dict(e=(1, -2., 'hello', u'goodbyeu\u2764')), None], f=sp,
-             g=dict(dfa=df, srb=sr))
+             g=dict(dfa=df, srb=sr), h=sp_csr)
     write_hdf5(test_file, 1)
     assert_equal(read_hdf5(test_file), 1)
     assert_raises(IOError, write_hdf5, test_file, x)  # file exists
