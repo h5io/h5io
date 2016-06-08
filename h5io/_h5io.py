@@ -178,7 +178,7 @@ def _triage_write(key, value, root, comp_kw, where,
         _triage_write('indptr', value.indptr, sub_root, comp_kw,
                       where + '.csc_matrix_indptr', cleanup_data=cleanup_data,
                       slash=slash)
-    elif isinstance(value, sparse.csr_matrix):
+    elif sparse is not None and isinstance(value, sparse.csr_matrix):
         sub_root = _create_titled_group(root, key, 'csr_matrix')
         _triage_write('data', value.data, sub_root, comp_kw,
                       where + '.csr_matrix_data', cleanup_data=cleanup_data,
