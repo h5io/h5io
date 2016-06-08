@@ -178,6 +178,20 @@ def _triage_write(key, value, root, comp_kw, where,
         _triage_write('indptr', value.indptr, sub_root, comp_kw,
                       where + '.csc_matrix_indptr', cleanup_data=cleanup_data,
                       slash=slash)
+    elif sparse is not None and isinstance(value, sparse.csr_matrix):
+        sub_root = _create_titled_group(root, key, 'csr_matrix')
+        _triage_write('data', value.data, sub_root, comp_kw,
+                      where + '.csr_matrix_data', cleanup_data=cleanup_data,
+                      slash=slash)
+        _triage_write('indices', value.indices, sub_root, comp_kw,
+                      where + '.csr_matrix_indices', cleanup_data=cleanup_data,
+                      slash=slash)
+        _triage_write('indptr', value.indptr, sub_root, comp_kw,
+                      where + '.csr_matrix_indptr', cleanup_data=cleanup_data,
+                      slash=slash)
+        _triage_write('shape', value.shape, sub_root, comp_kw,
+                      where + '.csr_matrix_shape', cleanup_data=cleanup_data,
+                      slash=slash)
     else:
         if isinstance(value, (DataFrame, Series)):
             if isinstance(value, DataFrame):
@@ -264,6 +278,15 @@ def _triage_read(node, slash='ignore'):
                                                    slash=slash),
                                       _triage_read(node['indptr'],
                                                    slash=slash)))
+        elif type_str == 'csr_matrix':
+            if sparse is None:
+                raise RuntimeError('scipy must be installed to read this data')
+            data = sparse.csr_matrix((_triage_read(node['data'], slash=slash),
+                                      _triage_read(node['indices'],
+                                                   slash=slash),
+                                      _triage_read(node['indptr'],
+                                                   slash=slash)),
+                                     shape=_triage_read(node['shape']))
         elif type_str in ['pd_dataframe', 'pd_series']:
             from pandas import read_hdf
             if isinstance(DataFrame, type(None)):
