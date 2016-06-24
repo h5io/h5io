@@ -14,11 +14,6 @@ try:
 except ImportError:
     sparse = None
 
-try:
-    from pandas import DataFrame, Series
-except ImportError:
-    DataFrame = Series = type(None)
-
 # Adapted from six
 PY3 = sys.version_info[0] == 3
 text_type = str if PY3 else unicode  # noqa
@@ -193,16 +188,22 @@ def _triage_write(key, value, root, comp_kw, where,
                       where + '.csr_matrix_shape', cleanup_data=cleanup_data,
                       slash=slash)
     else:
-        if isinstance(value, (DataFrame, Series)):
-            if isinstance(value, DataFrame):
-                title = 'pd_dataframe'
-            else:
-                title = 'pd_series'
-            rootname = root.name
-            cleanup_data.append({title: (rootname, key, value)})
+        try:
+            from pandas import DataFrame, Series
+        except ImportError:
+            pass
         else:
-            err_str = 'unsupported type %s (in %s)' % (type(value), where)
-            raise TypeError(err_str)
+            if isinstance(value, (DataFrame, Series)):
+                if isinstance(value, DataFrame):
+                    title = 'pd_dataframe'
+                else:
+                    title = 'pd_series'
+                rootname = root.name
+                cleanup_data.append({title: (rootname, key, value)})
+                return
+
+        err_str = 'unsupported type %s (in %s)' % (type(value), where)
+        raise TypeError(err_str)
 
 ##############################################################################
 # READING
@@ -289,9 +290,6 @@ def _triage_read(node, slash='ignore'):
                                      shape=_triage_read(node['shape']))
         elif type_str in ['pd_dataframe', 'pd_series']:
             from pandas import read_hdf
-            if isinstance(DataFrame, type(None)):
-                err_str = 'pandas data found but no pandas installation exists'
-                raise ImportError(err_str)
             rootname = node.name
             filename = node.file.filename
             data = read_hdf(filename, rootname, mode='r')
@@ -345,6 +343,12 @@ def object_diff(a, b, pre=''):
     diffs : str
         A string representation of the differences.
     """
+
+    try:
+        from pandas import DataFrame, Series
+    except ImportError:
+        DataFrame = Series = type(None)
+
     out = ''
     if type(a) != type(b):
         out += pre + ' type mismatch (%s, %s)\n' % (type(a), type(b))
