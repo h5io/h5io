@@ -13,7 +13,8 @@ try:
 except ImportError:
     DataFrame = Series = None
 
-from h5io import write_hdf5, read_hdf5, _TempDir, object_diff
+from h5io import (write_hdf5, read_hdf5,
+                  _TempDir, object_diff, list_file_contents)
 
 
 def test_hdf5():
@@ -31,7 +32,7 @@ def test_hdf5():
     sp_csr[2, 2] = 2
     x = dict(a=dict(b=np.zeros(3)), c=np.zeros(2, np.complex128),
              d=[dict(e=(1, -2., 'hello', u'goodbyeu\u2764')), None], f=sp,
-             g=dict(dfa=df, srb=sr), h=sp_csr)
+             g=dict(dfa=df, srb=sr), h=sp_csr, i=sr, j='hi')
     write_hdf5(test_file, 1)
     assert_equal(read_hdf5(test_file), 1)
     assert_raises(IOError, write_hdf5, test_file, x)  # file exists
@@ -39,6 +40,8 @@ def test_hdf5():
     assert_raises(IOError, read_hdf5, test_file + 'FOO')  # not found
     xx = read_hdf5(test_file)
     assert_true(object_diff(x, xx) == '')  # no assert_equal, ugly output
+    list_file_contents(test_file)  # Testing the h5 listing
+    assert_raises(TypeError, list_file_contents, sp)  # Only string works
     write_hdf5(test_file, np.bool_(True), overwrite=True)
     assert_equal(read_hdf5(test_file), np.bool_(True))
 
