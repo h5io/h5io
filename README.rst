@@ -18,6 +18,15 @@ h5io is a package designed to facilitate saving some standard Python
 objects into the forward-compatible HDF5 format. It is a higher-level
 package than ``h5py``.
 
+API
+^^^
+h5io lets you quickly read, write, and list the contents of an HDF5 file.
+Check out an example notebook here_.
+
+.. _here: doc/h5io_demo.ipynb
+
+.. image:: doc/h5io.gif
+
 Get the latest code
 ^^^^^^^^^^^^^^^^^^^
 
