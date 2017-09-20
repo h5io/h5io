@@ -152,7 +152,7 @@ def _triage_write(key, value, root, comp_kw, where,
             title = 'float'
         _create_titled_dataset(root, key, title, np.atleast_1d(value))
     elif isinstance(value, (np.integer, np.floating, np.bool_)):
-        title = 'np_{}'.format(value.__class__.__name__)
+        title = 'np_{0}'.format(value.__class__.__name__)
         _create_titled_dataset(root, key, title, np.atleast_1d(value))
     elif isinstance(value, string_types):
         if isinstance(value, text_type):  # unicode
