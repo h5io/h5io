@@ -117,3 +117,13 @@ def test_object_diff():
             c = ob_type([1, 3])
             assert_true('1 element' in object_diff(b, c))
     assert_raises(RuntimeError, object_diff, object, object)
+
+
+def test_numpy_values():
+    tempdir = _TempDir()
+    test_file = op.join(tempdir, 'test.hdf5')
+    for cast in [np.int8, np.int16, np.int32, np.int64, np.bool_,
+                 np.float16, np.float32, np.float64]:
+        value = cast(1)
+        write_hdf5(test_file, value, title='first', overwrite='update')
+        assert_equal(read_hdf5(test_file, 'first'), value)
