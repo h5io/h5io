@@ -5,8 +5,8 @@
 .. |Travis| image:: https://api.travis-ci.org/h5io/h5io.png?branch=master
 .. _Travis: https://travis-ci.org/h5io/h5io
 
-.. |Appveyor| image:: https://ci.appveyor.com/api/projects/status/puwaarmllxq5wfvm/branch/master?svg=true
-.. _Appveyor: https://ci.appveyor.com/project/Eric89GXL/h5io/branch/master
+.. |Appveyor| image:: https://ci.appveyor.com/api/projects/status/puwaarmllxq5wfvm?svg=true
+.. _Appveyor: https://ci.appveyor.com/project/larsoner/h5io/branch/master
 
 .. |Codecov| image:: https://codecov.io/gh/h5io/h5io/branch/master/graph/badge.svg
 .. _Codecov: https://codecov.io/gh/h5io/h5io
