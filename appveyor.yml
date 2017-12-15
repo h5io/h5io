@@ -5,7 +5,8 @@ environment:
   global:
       PYTHON: "C:\\conda"
       MINICONDA_VERSION: "latest"
-      CONDA_DEPENDENCIES: "setuptools numpy scipy pandas nose h5py==2.3 tables coverage codecov"
+      CONDA_DEPENDENCIES: "setuptools numpy scipy pandas nose h5py coverage codecov"
+      PIP_DEPENDENCIES: "pytables"
   matrix:
       - PYTHON_VERSION: "3.6"
         PYTHON_ARCH: "64"
