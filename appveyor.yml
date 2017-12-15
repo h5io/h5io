@@ -5,7 +5,7 @@ environment:
   global:
       PYTHON: "C:\\conda"
       MINICONDA_VERSION: "latest"
-      CONDA_DEPENDENCIES: "setuptools numpy scipy pandas nose h5py pytables"
+      CONDA_DEPENDENCIES: "setuptools numpy scipy pandas nose h5py pytables coverage codecov"
   matrix:
       - PYTHON_VERSION: "3.6"
         PYTHON_ARCH: "64"
@@ -13,20 +13,15 @@ environment:
 install:
   - "git clone git://github.com/astropy/ci-helpers.git"
   - "powershell ci-helpers/appveyor/install-miniconda.ps1"
-  - "powershell make/get_fsaverage.ps1"
   - "SET PATH=%PYTHON%;%PYTHON%\\Scripts;%PATH%"
   - "activate test"
   - "python setup.py develop"
-  - "conda install ffmpeg -c conda-forge"
-  - "SET SUBJECTS_DIR=%CD%\\subjects"
-  - "ls %CD%\\subjects"
-  - "pip install --upgrade git+https://github.com/enthought/mayavi.git"
 
 build: false  # Not a C# project, build stuff at the test step instead.
 
 test_script:
   # Run the project tests
-  - "nosetests --verbosity=2"
+  - "nosetests"
 
 on_success:
-  - "coveralls"
+  - "codecov"

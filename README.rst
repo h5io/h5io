@@ -8,8 +8,8 @@
 .. |Appveyor| image:: https://ci.appveyor.com/api/projects/status/puwaarmllxq5wfvm/branch/master?svg=true
 .. _Appveyor: https://ci.appveyor.com/project/Eric89GXL/h5io/branch/master
 
-.. |Coveralls| image:: https://coveralls.io/repos/h5io/h5io/badge.png?branch=master
-.. _Coveralls: https://coveralls.io/r/h5io/h5io?branch=master
+.. |Codecov| image:: https://codecov.io/gh/h5io/h5io/branch/master/graph/badge.svg
+.. _Codecov: https://codecov.io/gh/h5io/h5io
 
 `h5io <http://h5io.github.io>`_
 =======================================================

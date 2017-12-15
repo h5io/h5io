@@ -24,9 +24,9 @@ install:
     - conda create -n testenv --yes pip python=$PYTHON $INSTALLS
     - source activate testenv
     - if [ "${PYTHON}" == "2.6" ]; then
-        pip install -q requests[security];
+        conda install certifi requests;
       fi;
-    - pip install -q coveralls
+    - pip install -q codecov
     - python setup.py build
     - python setup.py install
 
@@ -35,4 +35,4 @@ script:
     - make flake
 
 after_success:
-    - coveralls
+    - codecov
