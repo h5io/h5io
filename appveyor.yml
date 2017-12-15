@@ -6,7 +6,7 @@ environment:
       PYTHON: "C:\\conda"
       MINICONDA_VERSION: "latest"
       CONDA_DEPENDENCIES: "setuptools numpy scipy pandas nose h5py coverage"
-      PIP_DEPENDENCIES: "pytables codecov"
+      PIP_DEPENDENCIES: "tables codecov"
   matrix:
       - PYTHON_VERSION: "3.6"
         PYTHON_ARCH: "64"
