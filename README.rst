@@ -1,6 +1,6 @@
 .. -*- mode: rst -*-
 
-|Travis|_ |Appveyor|_ |Coveralls|_
+|Travis|_ |Appveyor|_ |Codecov|_
 
 .. |Travis| image:: https://api.travis-ci.org/h5io/h5io.png?branch=master
 .. _Travis: https://travis-ci.org/h5io/h5io
