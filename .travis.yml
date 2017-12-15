@@ -19,7 +19,7 @@ before_install:
 install:
     - INSTALLS="nose numpy$NUMPY h5py pep8 pyflakes flake8 coverage"
     - if [ "${DEPS}" != "minimal" ]; then
-        INSTALLS="$INSTALLS scipy pandas";
+        INSTALLS="$INSTALLS scipy pandas pytables";
       else
         INSTALLS="$INSTALLS certifi requests";
       fi;
