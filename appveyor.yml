@@ -7,7 +7,7 @@ environment:
       MINICONDA_VERSION: "latest"
       CONDA_DEPENDENCIES: "setuptools numpy scipy pandas nose h5py pytables coverage codecov"
   matrix:
-      - PYTHON_VERSION: "3.5"
+      - PYTHON_VERSION: "2.7"
         PYTHON_ARCH: "64"
 
 install:
