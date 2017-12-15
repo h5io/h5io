@@ -5,7 +5,7 @@ sudo: false
 
 env:
     - PYTHON=2.7
-    - PYTHON=3.5
+    - PYTHON=3.6
     - PYTHON=2.6 NUMPY="=1.7" DEPS="minimal"
 
 # Setup anaconda
@@ -23,6 +23,9 @@ install:
       fi;
     - conda create -n testenv --yes pip python=$PYTHON $INSTALLS
     - source activate testenv
+    - if [ "${PYTHON}" == "2.6" ]; then
+        pip install -q requests[security];
+      fi;
     - pip install -q coveralls
     - python setup.py build
     - python setup.py install
