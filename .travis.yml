@@ -19,13 +19,12 @@ before_install:
 install:
     - INSTALLS="nose numpy$NUMPY h5py pep8 pyflakes flake8 coverage"
     - if [ "${DEPS}" != "minimal" ]; then
-        INSTALLS="$INSTALLS scipy pandas pytables";
+        INSTALLS="$INSTALLS scipy pandas";
+      else
+        INSTALLS="$INSTALLS certifi requests";
       fi;
     - conda create -n testenv --yes pip python=$PYTHON $INSTALLS
     - source activate testenv
-    - if [ "${PYTHON}" == "2.6" ]; then
-        conda install certifi requests;
-      fi;
     - pip install -q codecov
     - python setup.py build
     - python setup.py install
