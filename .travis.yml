@@ -5,7 +5,7 @@ sudo: false
 
 env:
     - PYTHON=2.7
-    - PYTHON=3.5
+    - PYTHON=3.6
     - PYTHON=2.6 NUMPY="=1.7" DEPS="minimal"
 
 # Setup anaconda
@@ -20,10 +20,12 @@ install:
     - INSTALLS="nose numpy$NUMPY h5py pep8 pyflakes flake8 coverage"
     - if [ "${DEPS}" != "minimal" ]; then
         INSTALLS="$INSTALLS scipy pandas pytables";
+      else
+        INSTALLS="$INSTALLS certifi requests";
       fi;
     - conda create -n testenv --yes pip python=$PYTHON $INSTALLS
     - source activate testenv
-    - pip install -q coveralls
+    - pip install -q codecov
     - python setup.py build
     - python setup.py install
 
@@ -32,4 +34,4 @@ script:
     - make flake
 
 after_success:
-    - coveralls
+    - codecov
