@@ -63,4 +63,4 @@ test_script:
 
 on_success:
   - "codecov"
-  - "conda build --python %PYTHON_VERSION% --user jan-janssen --token %ANACONDA_TOKEN% conda/h5io"
+  - "conda build --python %PYTHON_VERSION% --user janssen --token %ANACONDA_TOKEN% conda/h5io"
