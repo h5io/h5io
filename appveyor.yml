@@ -5,7 +5,7 @@ environment:
   global:
       PYTHON: "C:\\conda"
       MINICONDA_VERSION: "latest"
-      CONDA_DEPENDENCIES: "setuptools numpy scipy pandas nose h5py coverage"
+      CONDA_DEPENDENCIES: "setuptools numpy scipy pandas nose h5py coverage conda-build git anaconda-client"
       PIP_DEPENDENCIES: "tables codecov"
       ANACONDA_TOKEN:
         secure: N3M+mmAlwN1H05QripNkax/2vWvbK0xvmpKkQE+haFGbB2+EUdB99W/cZlhvZZ9R
@@ -27,7 +27,6 @@ install:
   - "git clone git://github.com/astropy/ci-helpers.git"
   - "powershell ci-helpers/appveyor/install-miniconda.ps1"
   - "SET PATH=%PYTHON%;%PYTHON%\\Scripts;%PATH%"
-  - "conda install --yes conda-build git make anaconda-client"
   - "conda config --set anaconda_upload yes"
   - "activate test"
   - "python setup.py develop"

@@ -17,16 +17,10 @@ before_install:
   - conda update --yes --quiet conda
 
 install:
-    - INSTALLS="nose numpy$NUMPY h5py pep8 pyflakes flake8 coverage"
-    - if [ "${DEPS}" != "minimal" ]; then
-        INSTALLS="$INSTALLS scipy pandas pytables";
-      else
-        INSTALLS="$INSTALLS certifi requests";
-      fi;
+    - INSTALLS="nose numpy h5py pep8 pyflakes flake8 coverage scipy pandas pytables conda-build git anaconda-client"
     - conda create -n testenv --yes pip python=$PYTHON $INSTALLS
-    - conda install --yes conda-build git make anaconda-client
-    - conda config --set anaconda_upload yes
     - source activate testenv
+    - conda config --set anaconda_upload yes
     - pip install -q codecov
     - python setup.py build
     - python setup.py install
@@ -34,7 +28,7 @@ install:
 script:
     - nosetests --verbosity=2 --with-coverage
     - make flake
-    - conda build --python ${PYTHON} --user jan-janssen --token ${CONDA_UPLOAD_TOKEN} conda/h5io
 
 after_success:
     - codecov
+    - conda build --python ${PYTHON} --user jan-janssen --token ${CONDA_UPLOAD_TOKEN} conda/h5io
