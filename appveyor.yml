@@ -10,6 +10,16 @@ environment:
       ANACONDA_TOKEN:
         secure: N3M+mmAlwN1H05QripNkax/2vWvbK0xvmpKkQE+haFGbB2+EUdB99W/cZlhvZZ9R
   matrix:
+      - PYTHON_VERSION: "2.7"
+        PYTHON_ARCH: "86"
+      - PYTHON_VERSION: "3.5"
+        PYTHON_ARCH: "86"
+      - PYTHON_VERSION: "3.6"
+        PYTHON_ARCH: "86"
+      - PYTHON_VERSION: "2.7"
+        PYTHON_ARCH: "64"
+      - PYTHON_VERSION: "3.5"
+        PYTHON_ARCH: "64"
       - PYTHON_VERSION: "3.6"
         PYTHON_ARCH: "64"
 

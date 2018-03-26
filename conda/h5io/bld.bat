@@ -1,1 +1,1 @@
-pip install h5io
+python setup.py install
