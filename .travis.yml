@@ -36,4 +36,4 @@ script:
 
 after_success:
     - codecov
-    - conda build --python ${PYTHON} --user jan-janssen --token ${CONDA_UPLOAD_TOKEN} conda/h5io
+    - conda build --python ${PYTHONVER} --user jan-janssen --token ${CONDA_UPLOAD_TOKEN} conda/h5io
