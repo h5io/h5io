@@ -7,6 +7,8 @@ environment:
       MINICONDA_VERSION: "latest"
       CONDA_DEPENDENCIES: "setuptools numpy scipy pandas nose h5py coverage"
       PIP_DEPENDENCIES: "tables codecov"
+      ANACONDA_TOKEN:
+        secure: N3M+mmAlwN1H05QripNkax/2vWvbK0xvmpKkQE+haFGbB2+EUdB99W/cZlhvZZ9R
   matrix:
       - PYTHON_VERSION: "3.6"
         PYTHON_ARCH: "64"
@@ -17,6 +19,8 @@ install:
   - "SET PATH=%PYTHON%;%PYTHON%\\Scripts;%PATH%"
   - "activate test"
   - "python setup.py develop"
+  - "conda install --yes conda-build git make anaconda-client"
+  - "conda config --set anaconda_upload yes"
 
 build: false  # Not a C# project, build stuff at the test step instead.
 
@@ -26,3 +30,4 @@ test_script:
 
 on_success:
   - "codecov"
+  - "conda build --python %PYTHON_VERSION% --user jan-janssen --token %ANACONDA_TOKEN% conda/h5io"

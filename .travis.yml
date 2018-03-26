@@ -28,10 +28,13 @@ install:
     - pip install -q codecov
     - python setup.py build
     - python setup.py install
+    - conda install --yes conda-build git make anaconda-client
+    - conda config --set anaconda_upload yes
 
 script:
     - nosetests --verbosity=2 --with-coverage
     - make flake
+    - conda build --python ${PYTHON} --user jan-janssen --token ${CONDA_UPLOAD_TOKEN} conda/h5io
 
 after_success:
     - codecov
