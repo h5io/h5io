@@ -1,33 +1,38 @@
-language: python
-
-# Use container-based infrastructure
-sudo: false
-
-env:
-    - PYTHON=2.7
-    - PYTHON=3.6
-    - PYTHON=2.6 NUMPY="=1.7" DEPS="minimal"
-
-# Setup anaconda
-before_install:
-  - wget -q http://repo.continuum.io/miniconda/Miniconda-latest-Linux-x86_64.sh -O miniconda.sh
-  - chmod +x miniconda.sh
-  - ./miniconda.sh -b -p /home/travis/miniconda
-  - export PATH=/home/travis/miniconda/bin:$PATH
-  - conda update --yes --quiet conda
+matrix:
+  include:
+    - os: linux
+      language: python
+      env: MINICONDA="https://repo.continuum.io/miniconda/Miniconda2-latest-Linux-x86_64.sh" PYTHONVER="2.7"
+    - os: linux
+      language: python
+      env: MINICONDA="https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh" PYTHONVER="3.5"
+    - os: linux
+      language: python
+      env: MINICONDA="https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh" PYTHONVER="3.6"
+    - os: osx
+      language: generic
+      env: MINICONDA="https://repo.continuum.io/miniconda/Miniconda2-latest-MacOSX-x86_64.sh" PYTHONVER="2.7"
+    - os: osx
+      language: generic
+      env: MINICONDA="https://repo.continuum.io/miniconda/Miniconda3-latest-MacOSX-x86_64.sh" PYTHONVER="3.5"
+    - os: osx
+      language: generic
+      env: MINICONDA="https://repo.continuum.io/miniconda/Miniconda3-latest-MacOSX-x86_64.sh" PYTHONVER="3.6"
 
 install:
-    - INSTALLS="nose numpy$NUMPY h5py pep8 pyflakes flake8 coverage"
-    - if [ "${DEPS}" != "minimal" ]; then
-        INSTALLS="$INSTALLS scipy pandas pytables";
-      else
-        INSTALLS="$INSTALLS certifi requests";
-      fi;
-    - conda create -n testenv --yes pip python=$PYTHON $INSTALLS
-    - source activate testenv
-    - pip install -q codecov
-    - python setup.py build
-    - python setup.py install
+- wget ${MINICONDA} -O miniconda.sh
+- bash miniconda.sh -b -p $HOME/miniconda
+- export PATH="$HOME/miniconda/bin:$PATH"
+- conda config --set always_yes yes --set changeps1 no
+- conda update -q conda
+- conda install nose numpy h5py pep8 pyflakes flake8 coverage scipy pandas pytables conda-build git anaconda-client
+- conda config --set anaconda_upload yes
+
+script:
+- pip install -q codecov
+- python setup.py build
+- python setup.py install
+- conda build --python ${PYTHONVER} --user ${USER} --token ${CONDA_UPLOAD_TOKEN} conda/h5io
 
 script:
     - nosetests --verbosity=2 --with-coverage
@@ -35,3 +40,4 @@ script:
 
 after_success:
     - codecov
+    - conda build --python ${PYTHONVER} --user janssen --token ${CONDA_UPLOAD_TOKEN} conda/h5io

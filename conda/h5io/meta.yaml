@@ -1,0 +1,26 @@
+package:
+  name: h5io
+  version: 0.1.0
+
+source:
+  path: ../../
+
+requirements:
+  build:
+    - python
+    - numpy
+    - h5py
+
+  run:
+    - python
+    - numpy
+    - h5py
+
+test:
+  imports:
+    - h5io
+
+about:
+  home: http://github.com/h5io/h5io
+  license: BSD (3-clause)
+  summary: "Python Objects Onto HDF5"
