@@ -83,6 +83,25 @@ def test_hdf5():
     assert_equal(read_hdf5(test_file, title='second'), 5)
 
 
+def test_hdf5_use_json():
+    """Test HDF5 IO
+    """
+    tempdir = _TempDir()
+    test_file = op.join(tempdir, 'test.hdf5')
+    spec_dict = {'first/second': 'third'}
+    write_hdf5(test_file, spec_dict, overwrite=True, slash='replace', use_json=True)
+    assert_equal(
+        read_hdf5(test_file, slash='replace').keys(), spec_dict.keys())
+    in_keys = list(read_hdf5(test_file, slash='ignore').keys())
+    assert_true('{FWDSLASH}' in in_keys[0])
+    assert_raises(ValueError, read_hdf5, test_file, slash='brains')
+    # Testing that title slashes aren't replaced
+    write_hdf5(
+        test_file, spec_dict, title='one/two', overwrite=True, slash='replace', use_json=True)
+    assert_equal(read_hdf5(test_file, title='one/two', slash='replace').keys(),
+                 spec_dict.keys())
+
+
 def test_path_support():
     tempdir = _TempDir()
     test_file = op.join(tempdir, 'test.hdf5')

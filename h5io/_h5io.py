@@ -130,7 +130,7 @@ def _triage_write(key, value, root, comp_kw, where,
         else:
             raise ValueError("slash must be one of ['error', 'replace'")
 
-    if use_json and isinstance(value, (list, dict)) and 
+    if use_json and isinstance(value, (list, dict)) and \
             json_compatible(value, slash=slash):
         value = np.frombuffer(json.dumps(value).encode('utf-8'), np.uint8)
         _create_titled_dataset(root, key, 'json', value, comp_kw)
