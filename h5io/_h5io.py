@@ -60,7 +60,7 @@ def _create_pandas_dataset(fname, root, key, title, data):
 
 
 def write_hdf5(fname, data, overwrite=False, compression=4,
-               title='h5io', slash='error'):
+               title='h5io', slash='error', use_json=False):
     """Write python object to HDF5 format using h5py
 
     Parameters
@@ -105,7 +105,8 @@ def write_hdf5(fname, data, overwrite=False, compression=4,
             del fid[title]
         cleanup_data = []
         _triage_write(title, data, fid, comp_kw, str(type(data)),
-                      cleanup_data=cleanup_data, slash=slash, title=title)
+                      cleanup_data=cleanup_data, slash=slash, title=title, 
+                      use_json=use_json)
 
     # Will not be empty if any extra data to be written
     for data in cleanup_data:
@@ -117,7 +118,7 @@ def write_hdf5(fname, data, overwrite=False, compression=4,
 
 
 def _triage_write(key, value, root, comp_kw, where,
-                  cleanup_data=[], slash='error', title=None):
+                  cleanup_data=[], slash='error', title=None, use_json=False):
     if key != title and '/' in key:
         if slash == 'error':
             raise ValueError('Found a key with "/", '
@@ -129,7 +130,8 @@ def _triage_write(key, value, root, comp_kw, where,
         else:
             raise ValueError("slash must be one of ['error', 'replace'")
 
-    if isinstance(value, (list, dict)) and json_compatible(value, slash=slash):
+    if use_json and isinstance(value, (list, dict)) and 
+            json_compatible(value, slash=slash):
         value = np.frombuffer(json.dumps(value).encode('utf-8'), np.uint8)
         _create_titled_dataset(root, key, 'json', value, comp_kw)
     elif isinstance(value, dict):
