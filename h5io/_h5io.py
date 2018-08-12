@@ -3,6 +3,7 @@
 #
 # License: BSD (3-clause)
 
+import json
 import sys
 import tempfile
 from shutil import rmtree
@@ -128,7 +129,10 @@ def _triage_write(key, value, root, comp_kw, where,
         else:
             raise ValueError("slash must be one of ['error', 'replace'")
 
-    if isinstance(value, dict):
+    if isinstance(value, (list, dict)) and json_compatible(value, slash=slash):
+        value = np.frombuffer(json.dumps(value).encode('utf-8'), np.uint8)
+        _create_titled_dataset(root, key, 'json', value, comp_kw)
+    elif isinstance(value, dict):
         sub_root = _create_titled_group(root, key, 'dict')
         for key, sub_value in value.items():
             if not isinstance(key, string_types):
@@ -312,6 +316,9 @@ def _triage_read(node, slash='ignore'):
         decoder = 'utf-8' if type_str == 'unicode' else 'ASCII'
         cast = text_type if type_str == 'unicode' else str
         data = cast(np.array(node).tostring().decode(decoder))
+    elif type_str == 'json':
+        node_unicode = str(np.array(node).tostring().decode('utf-8'))
+        data = json.loads(node_unicode)
     elif type_str == 'None':
         data = None
     else:
@@ -487,3 +494,31 @@ def list_file_contents(h5file):
         if not isinstance(h5file, h5py.File):
             raise TypeError(err.format(type(h5file)))
         _list_file_contents(h5file)
+
+
+def json_compatible(obj, slash='error'):
+    if isinstance(obj, (str, int, float, bool, type(None))):
+        return True
+    elif isinstance(obj, list):
+        return all([json_compatible(item) for item in obj])
+    elif isinstance(obj, dict):
+        _check_keys_in_dict(obj, slash=slash)
+        return all([json_compatible(item) for item in obj.values()])
+    else:
+        return False
+
+
+def _check_keys_in_dict(obj, slash='error'):
+    for key in obj.keys():
+        if '/' in key:
+            key_prev = key
+            if slash == 'error':
+                raise ValueError('Found a key with "/", '
+                                 'this is not allowed if slash == error')
+            elif slash == 'replace':
+                # Auto-replace keys with proper values
+                for key_spec, val_spec in special_chars.items():
+                    key = key.replace(val_spec, key_spec)
+                obj[key] = obj.pop(key_prev)
+            else:
+                raise ValueError("slash must be one of ['error', 'replace'")
