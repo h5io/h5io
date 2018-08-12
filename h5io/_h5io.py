@@ -163,7 +163,8 @@ def _triage_write(key, value, root, comp_kw, where,
             title = 'ascii'
         _create_titled_dataset(root, key, title, value, comp_kw)
     elif isinstance(value, np.ndarray):
-        if not (value.dtype == np.dtype('object') and len(set([sub.dtype for sub in value])) == 1):
+        if not (value.dtype == np.dtype('object') and
+                len(set([sub.dtype for sub in value])) == 1):
             _create_titled_dataset(root, key, 'ndarray', value)
         else:
             ma_index, ma_data = multiarray_dump(value)
@@ -502,7 +503,8 @@ def list_file_contents(h5file):
 ##############################################################################
 # Arrays with mixed dimensions
 def _validate_object_array(array):
-    if not (array.dtype == np.dtype('object') and len(set([sub.dtype for sub in array])) == 1):
+    if not (array.dtype == np.dtype('object') and
+            len(set([sub.dtype for sub in array])) == 1):
         raise TypeError('unsupported array type')
 
 
@@ -511,7 +513,7 @@ def _shape_list(array):
 
 
 def _validate_sub_shapes(shape_lst):
-    if not all([shape_lst[0][1:]==t[1:] for t in shape_lst]):
+    if not all([shape_lst[0][1:] == t[1:] for t in shape_lst]):
         raise ValueError('shape does not match!')
 
 
@@ -540,7 +542,8 @@ def multiarray_dump(array):
     _validate_object_array(array)
     shape_lst = _shape_list(array)
     _validate_sub_shapes(shape_lst=shape_lst)
-    return _index_sum(index_lst=_array_index(shape_lst=shape_lst)), _merge_array(array=array)
+    index_sum = _index_sum(index_lst=_array_index(shape_lst=shape_lst))
+    return index_sum, _merge_array(array=array)
 
 
 def multiarray_load(index, array_merged):
