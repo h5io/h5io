@@ -105,7 +105,7 @@ def write_hdf5(fname, data, overwrite=False, compression=4,
             del fid[title]
         cleanup_data = []
         _triage_write(title, data, fid, comp_kw, str(type(data)),
-                      cleanup_data=cleanup_data, slash=slash, title=title, 
+                      cleanup_data=cleanup_data, slash=slash, title=title,
                       use_json=use_json)
 
     # Will not be empty if any extra data to be written
