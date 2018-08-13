@@ -93,6 +93,10 @@ def test_hdf5_use_json():
                use_json=True)
     assert_equal(
         read_hdf5(test_file, slash='replace').keys(), spec_dict.keys())
+    comp_dict = {'first': [1, 2], 'second': 'str', 'third': {'a': 1}}
+    write_hdf5(test_file, comp_dict, overwrite=True, use_json=True)
+    assert_equal(
+        read_hdf5(test_file, slash='replace').keys(), spec_dict.keys())
     in_keys = list(read_hdf5(test_file, slash='ignore').keys())
     assert_true('{FWDSLASH}' in in_keys[0])
     assert_raises(ValueError, read_hdf5, test_file, slash='brains')
