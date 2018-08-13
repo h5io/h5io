@@ -88,6 +88,9 @@ def test_hdf5_use_json():
     """
     tempdir = _TempDir()
     test_file = op.join(tempdir, 'test.hdf5')
+    splash_dict = {'first/second': {'one/more': 'value'}}
+    assert_raises(ValueError, write_hdf5, test_file, splash_dict,
+                  overwrite=True, slash='error', use_json=True)
     spec_dict = {'first/second': 'third'}
     write_hdf5(test_file, spec_dict, overwrite=True, slash='replace',
                use_json=True)
