@@ -35,3 +35,19 @@ script:
 
 after_success:
     - codecov
+
+deploy:
+  - provider: pypi
+    user: ${PYPI_USER}
+    password: ${PYPI_TOKEN}
+    allow_failure: true
+    on:
+      branch: master
+      condition: "${PYTHON} = 3.6"
+  - provider: pypi
+    user: ${PYPI_USER}
+    password: ${PYPI_TOKEN}
+    allow_failure: true
+    on:
+      tags: true
+      condition: "${PYTHON} = 3.6"
