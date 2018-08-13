@@ -103,7 +103,7 @@ def test_hdf5_use_json():
     numpy_dict = {'first': np.array([1])}
     write_hdf5(test_file, numpy_dict, overwrite=True, use_json=True)
     assert_equal(list(read_hdf5(test_file, slash='replace').values())[0],
-                 list(numpy_dict.values()[0]))
+                 list(numpy_dict.values())[0])
     assert_raises(ValueError, read_hdf5, test_file, slash='brains')
     # Testing that title slashes aren't replaced
     write_hdf5(test_file, spec_dict, title='one/two', overwrite=True,
