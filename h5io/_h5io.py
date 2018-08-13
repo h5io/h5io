@@ -172,7 +172,14 @@ def _triage_write(key, value, root, comp_kw, where,
             title = 'ascii'
         _create_titled_dataset(root, key, title, value, comp_kw)
     elif isinstance(value, np.ndarray):
-        _create_titled_dataset(root, key, 'ndarray', value)
+        if not (value.dtype == np.dtype('object') and
+                len(set([sub.dtype for sub in value])) == 1):
+            _create_titled_dataset(root, key, 'ndarray', value)
+        else:
+            ma_index, ma_data = multiarray_dump(value)
+            sub_root = _create_titled_group(root, key, 'multiarray')
+            _create_titled_dataset(sub_root, 'index', 'ndarray', ma_index)
+            _create_titled_dataset(sub_root, 'data', 'ndarray', ma_data)
     elif sparse is not None and isinstance(value, sparse.csc_matrix):
         sub_root = _create_titled_group(root, key, 'csc_matrix')
         _triage_write('data', value.data, sub_root, comp_kw,
@@ -305,6 +312,10 @@ def _triage_read(node, slash='ignore'):
             filename = node.file.filename
             with HDFStore(filename, 'r') as tmpf:
                 data = read_hdf(tmpf, rootname)
+        elif type_str == 'multiarray':
+            ma_index = _triage_read(node.get('index', None), slash=slash)
+            ma_data = _triage_read(node.get('data', None), slash=slash)
+            data = multiarray_load(ma_index, ma_data)
         else:
             raise NotImplementedError('Unknown group type: {0}'
                                       ''.format(type_str))
@@ -527,3 +538,59 @@ def _check_keys_in_dict(obj, slash='error'):
                 obj[key] = obj.pop(key_prev)
             else:
                 raise ValueError("slash must be one of ['error', 'replace'")
+
+
+##############################################################################
+# Arrays with mixed dimensions
+def _validate_object_array(array):
+    if not (array.dtype == np.dtype('object') and
+            len(set([sub.dtype for sub in array])) == 1):
+        raise TypeError('unsupported array type')
+
+
+def _shape_list(array):
+    return [np.shape(sub) for sub in array]
+
+
+def _validate_sub_shapes(shape_lst):
+    if not all([shape_lst[0][1:] == t[1:] for t in shape_lst]):
+        raise ValueError('shape does not match!')
+
+
+def _array_index(shape_lst):
+    return [t[0] for t in shape_lst]
+
+
+def _index_sum(index_lst):
+    index_sum_lst = []
+    for step in index_lst:
+        if index_sum_lst != []:
+            index_sum_lst.append(index_sum_lst[-1] + step)
+        else:
+            index_sum_lst.append(step)
+    return index_sum_lst
+
+
+def _merge_array(array):
+    merged_lst = []
+    for sub in array:
+        merged_lst += sub.tolist()
+    return np.array(merged_lst)
+
+
+def multiarray_dump(array):
+    _validate_object_array(array)
+    shape_lst = _shape_list(array)
+    _validate_sub_shapes(shape_lst=shape_lst)
+    index_sum = _index_sum(index_lst=_array_index(shape_lst=shape_lst))
+    return index_sum, _merge_array(array=array)
+
+
+def multiarray_load(index, array_merged):
+    array_restore = []
+    i_prev = 0
+    for i in index[:-1]:
+        array_restore.append(array_merged[i_prev:i])
+        i_prev = i
+    array_restore.append(array_merged[i_prev:])
+    return np.array(array_restore)
