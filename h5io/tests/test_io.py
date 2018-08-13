@@ -98,7 +98,7 @@ def test_hdf5_use_json():
     comp_dict = {'first': [1, 2], 'second': 'str', 'third': {'a': 1}}
     write_hdf5(test_file, comp_dict, overwrite=True, use_json=True)
     assert_equal(
-        sorted(read_hdf5(test_file, slash='replace').keys()), 
+        sorted(read_hdf5(test_file, slash='replace').keys()),
         sorted(comp_dict.keys()))
     assert_raises(ValueError, read_hdf5, test_file, slash='brains')
     # Testing that title slashes aren't replaced
