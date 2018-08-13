@@ -83,6 +83,38 @@ def test_hdf5():
     assert_equal(read_hdf5(test_file, title='second'), 5)
 
 
+def test_hdf5_use_json():
+    """Test HDF5 IO
+    """
+    tempdir = _TempDir()
+    test_file = op.join(tempdir, 'test.hdf5')
+    splash_dict = {'first/second': {'one/more': 'value'}}
+    assert_raises(ValueError, write_hdf5, test_file, splash_dict,
+                  overwrite=True, slash='error', use_json=True)
+    spec_dict = {'first/second': 'third'}
+    write_hdf5(test_file, spec_dict, overwrite=True, slash='replace',
+               use_json=True)
+    assert_equal(
+        read_hdf5(test_file, slash='replace').keys(), spec_dict.keys())
+    in_keys = list(read_hdf5(test_file, slash='ignore').keys())
+    assert_true('{FWDSLASH}' in in_keys[0])
+    comp_dict = {'first': [1, 2], 'second': 'str', 'third': {'a': 1}}
+    write_hdf5(test_file, comp_dict, overwrite=True, use_json=True)
+    assert_equal(
+        sorted(read_hdf5(test_file, slash='replace').keys()),
+        sorted(comp_dict.keys()))
+    numpy_dict = {'first': np.array([1])}
+    write_hdf5(test_file, numpy_dict, overwrite=True, use_json=True)
+    assert_equal(list(read_hdf5(test_file, slash='replace').values())[0],
+                 list(numpy_dict.values())[0])
+    assert_raises(ValueError, read_hdf5, test_file, slash='brains')
+    # Testing that title slashes aren't replaced
+    write_hdf5(test_file, spec_dict, title='one/two', overwrite=True,
+               slash='replace', use_json=True)
+    assert_equal(read_hdf5(test_file, title='one/two', slash='replace').keys(),
+                 spec_dict.keys())
+
+
 def test_path_support():
     tempdir = _TempDir()
     test_file = op.join(tempdir, 'test.hdf5')
@@ -127,3 +159,16 @@ def test_numpy_values():
         value = cast(1)
         write_hdf5(test_file, value, title='first', overwrite='update')
         assert_equal(read_hdf5(test_file, 'first'), value)
+
+
+def test_multi_dim_array():
+    rng = np.random.RandomState(0)
+    traj = np.array([rng.randn(2, 1), rng.randn(3, 1)])
+    tempdir = _TempDir()
+    test_file = op.join(tempdir, 'test.hdf5')
+    write_hdf5(test_file, traj, title='first', overwrite='update')
+    for traj_read, traj_sub in zip(read_hdf5(test_file, 'first'), traj):
+        assert_true(np.equal(traj_read, traj_sub).all())
+    traj_no_structure = np.array([rng.randn(2, 1, 1), rng.randn(3, 1, 2)])
+    assert_raises(ValueError, write_hdf5, test_file, traj_no_structure,
+                  title='second', overwrite='update')
