@@ -127,3 +127,16 @@ def test_numpy_values():
         value = cast(1)
         write_hdf5(test_file, value, title='first', overwrite='update')
         assert_equal(read_hdf5(test_file, 'first'), value)
+
+
+def test_multi_dim_array():
+    rng = np.random.RandomState(0)
+    traj = np.array([rng.randn(2, 1), rng.randn(3, 1)])
+    tempdir = _TempDir()
+    test_file = op.join(tempdir, 'test.hdf5')
+    write_hdf5(test_file, traj, title='first', overwrite='update')
+    for traj_read, traj_sub in zip(read_hdf5(test_file, 'first'), traj):
+        assert_true(np.equal(traj_read, traj_sub).all())
+    traj_no_structure = np.array([rng.randn(2, 1, 1), rng.randn(3, 1, 2)])
+    assert_raises(ValueError, write_hdf5, test_file, traj_no_structure,
+                  title='second', overwrite='update')
