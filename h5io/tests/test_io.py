@@ -140,7 +140,3 @@ def test_multi_dim_array():
     traj_no_structure = np.array([rng.randn(2, 1, 1), rng.randn(3, 1, 2)])
     assert_raises(ValueError, write_hdf5, test_file, traj_no_structure,
                   title='second', overwrite='update')
-    traj_str = np.array([np.array(['a', 'b']), np.array(['a', 'b', 'c'])])
-    write_hdf5(test_file, traj_str, title='second', overwrite='update')
-    assert_raises(TypeError, write_hdf5, test_file, traj_str, title='second',
-                  overwrite='update')
