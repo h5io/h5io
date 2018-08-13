@@ -502,7 +502,7 @@ def list_file_contents(h5file):
 
 
 def json_compatible(obj, slash='error'):
-    if isinstance(obj, (str, int, float, bool, type(None))):
+    if isinstance(obj, (string_types, int, float, bool, type(None))):
         return True
     elif isinstance(obj, list):
         return all([json_compatible(item) for item in obj])
