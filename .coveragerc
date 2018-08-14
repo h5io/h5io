@@ -4,3 +4,4 @@ source = h5io
 include = */h5io/*
 omit =
     */setup.py
+    */_version.py
