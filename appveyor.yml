@@ -16,7 +16,6 @@ environment:
         PYTHON_ARCH: "64"
 
 version: '{build}'
-image: Visual Studio 2015
 
 install:
   - "git clone git://github.com/astropy/ci-helpers.git"
