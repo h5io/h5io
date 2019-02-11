@@ -20,7 +20,7 @@ before_install:
   - conda update --yes --quiet conda
 
 install:
-    - INSTALLS="pytest numpy$NUMPY h5py pep8 pyflakes flake8 coverage"
+    - INSTALLS="pytest numpy$NUMPY h5py pep8 pyflakes flake8 coverage pytest-cov"
     - if [ "${DEPS}" != "minimal" ]; then
         INSTALLS="$INSTALLS scipy pandas pytables";
       else
