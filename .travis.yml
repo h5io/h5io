@@ -20,7 +20,7 @@ before_install:
   - conda update --yes --quiet conda
 
 install:
-    - INSTALLS="nose numpy$NUMPY h5py pep8 pyflakes flake8 coverage"
+    - INSTALLS="pytest numpy$NUMPY h5py pep8 pyflakes flake8 coverage"
     - if [ "${DEPS}" != "minimal" ]; then
         INSTALLS="$INSTALLS scipy pandas pytables";
       else
@@ -33,7 +33,7 @@ install:
     - python setup.py install
 
 script:
-    - nosetests --verbosity=2 --with-coverage
+    - pytest h5io
     - make flake
 
 after_success:

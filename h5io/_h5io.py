@@ -108,7 +108,7 @@ def write_hdf5(fname, data, overwrite=False, compression=4,
             del fid[title]
         cleanup_data = []
         _triage_write(title, data, fid, comp_kw, str(type(data)),
-                      cleanup_data=cleanup_data, slash=slash, title=title,
+                      cleanup_data, slash=slash, title=title,
                       use_json=use_json)
 
     # Will not be empty if any extra data to be written
@@ -121,7 +121,8 @@ def write_hdf5(fname, data, overwrite=False, compression=4,
 
 
 def _triage_write(key, value, root, comp_kw, where,
-                  cleanup_data=[], slash='error', title=None, use_json=False):
+                  cleanup_data, slash='error', title=None,
+                  use_json=False):
     if key != title and '/' in key:
         if slash == 'error':
             raise ValueError('Found a key with "/", '

@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 from os import path as op
-from nose.tools import assert_raises, assert_true, assert_equal
+import pytest
 
 import numpy as np
+from numpy.testing import assert_equal
 try:
     from scipy import sparse
 except ImportError:
@@ -35,36 +36,36 @@ def test_hdf5():
              g=dict(dfa=df, srb=sr), h=sp_csr, i=sr, j='hi')
     write_hdf5(test_file, 1)
     assert_equal(read_hdf5(test_file), 1)
-    assert_raises(IOError, write_hdf5, test_file, x)  # file exists
+    pytest.raises(IOError, write_hdf5, test_file, x)  # file exists
     write_hdf5(test_file, x, overwrite=True)
-    assert_raises(IOError, read_hdf5, test_file + 'FOO')  # not found
+    pytest.raises(IOError, read_hdf5, test_file + 'FOO')  # not found
     xx = read_hdf5(test_file)
-    assert_true(object_diff(x, xx) == '')  # no assert_equal, ugly output
+    assert (object_diff(x, xx) == '')  # no assert_equal, ugly output
     list_file_contents(test_file)  # Testing the h5 listing
-    assert_raises(TypeError, list_file_contents, sp)  # Only string works
+    pytest.raises(TypeError, list_file_contents, sp)  # Only string works
     write_hdf5(test_file, np.bool_(True), overwrite=True)
     assert_equal(read_hdf5(test_file), np.bool_(True))
 
     # bad title
-    assert_raises(ValueError, read_hdf5, test_file, title='nonexist')
-    assert_raises(ValueError, write_hdf5, test_file, x, overwrite=True,
+    pytest.raises(ValueError, read_hdf5, test_file, title='nonexist')
+    pytest.raises(ValueError, write_hdf5, test_file, x, overwrite=True,
                   title=1)
-    assert_raises(ValueError, read_hdf5, test_file, title=1)
+    pytest.raises(ValueError, read_hdf5, test_file, title=1)
     # unsupported objects
-    assert_raises(TypeError, write_hdf5, test_file, {1: 'foo'},
+    pytest.raises(TypeError, write_hdf5, test_file, {1: 'foo'},
                   overwrite=True)
-    assert_raises(TypeError, write_hdf5, test_file, object, overwrite=True)
+    pytest.raises(TypeError, write_hdf5, test_file, object, overwrite=True)
     # special_chars
     spec_dict = {'first/second': 'third'}
-    assert_raises(ValueError, write_hdf5, test_file, spec_dict, overwrite=True)
-    assert_raises(ValueError, write_hdf5, test_file, spec_dict, overwrite=True,
+    pytest.raises(ValueError, write_hdf5, test_file, spec_dict, overwrite=True)
+    pytest.raises(ValueError, write_hdf5, test_file, spec_dict, overwrite=True,
                   slash='brains')
     write_hdf5(test_file, spec_dict, overwrite=True, slash='replace')
     assert_equal(
         read_hdf5(test_file, slash='replace').keys(), spec_dict.keys())
     in_keys = list(read_hdf5(test_file, slash='ignore').keys())
-    assert_true('{FWDSLASH}' in in_keys[0])
-    assert_raises(ValueError, read_hdf5, test_file, slash='brains')
+    assert ('{FWDSLASH}' in in_keys[0])
+    pytest.raises(ValueError, read_hdf5, test_file, slash='brains')
     # Testing that title slashes aren't replaced
     write_hdf5(
         test_file, spec_dict, title='one/two', overwrite=True, slash='replace')
@@ -75,7 +76,7 @@ def test_hdf5():
     write_hdf5(test_file, 2, title='second', overwrite='update')
     assert_equal(read_hdf5(test_file, title='first'), 1)
     assert_equal(read_hdf5(test_file, title='second'), 2)
-    assert_raises(IOError, write_hdf5, test_file, 3, title='second')
+    pytest.raises(IOError, write_hdf5, test_file, 3, title='second')
     write_hdf5(test_file, 3, title='second', overwrite='update')
     assert_equal(read_hdf5(test_file, title='second'), 3)
 
@@ -89,7 +90,7 @@ def test_hdf5_use_json():
     tempdir = _TempDir()
     test_file = op.join(tempdir, 'test.hdf5')
     splash_dict = {'first/second': {'one/more': 'value'}}
-    assert_raises(ValueError, write_hdf5, test_file, splash_dict,
+    pytest.raises(ValueError, write_hdf5, test_file, splash_dict,
                   overwrite=True, slash='error', use_json=True)
     spec_dict = {'first/second': 'third'}
     write_hdf5(test_file, spec_dict, overwrite=True, slash='replace',
@@ -97,7 +98,7 @@ def test_hdf5_use_json():
     assert_equal(
         read_hdf5(test_file, slash='replace').keys(), spec_dict.keys())
     in_keys = list(read_hdf5(test_file, slash='ignore').keys())
-    assert_true('{FWDSLASH}' in in_keys[0])
+    assert ('{FWDSLASH}' in in_keys[0])
     comp_dict = {'first': [1, 2], 'second': 'str', 'third': {'a': 1}}
     write_hdf5(test_file, comp_dict, overwrite=True, use_json=True)
     assert_equal(
@@ -107,7 +108,7 @@ def test_hdf5_use_json():
     write_hdf5(test_file, numpy_dict, overwrite=True, use_json=True)
     assert_equal(list(read_hdf5(test_file, slash='replace').values())[0],
                  list(numpy_dict.values())[0])
-    assert_raises(ValueError, read_hdf5, test_file, slash='brains')
+    pytest.raises(ValueError, read_hdf5, test_file, slash='brains')
     # Testing that title slashes aren't replaced
     write_hdf5(test_file, spec_dict, title='one/two', overwrite=True,
                slash='replace', use_json=True)
@@ -120,35 +121,34 @@ def test_path_support():
     test_file = op.join(tempdir, 'test.hdf5')
     write_hdf5(test_file, 1, title='first')
     write_hdf5(test_file, 2, title='second/third', overwrite='update')
-    assert_raises(ValueError, read_hdf5, test_file, title='second')
+    pytest.raises(ValueError, read_hdf5, test_file, title='second')
     assert_equal(read_hdf5(test_file, 'first'), 1)
     assert_equal(read_hdf5(test_file, 'second/third'), 2)
 
 
 def test_object_diff():
-    """Test object diff calculation
-    """
-    assert_true('type' in object_diff(1, 1.))
-    assert_true('missing' in object_diff({1: 1}, {}))
-    assert_true('missing' in object_diff({}, {1: 1}))
-    assert_true('length' in object_diff([], [1]))
-    assert_true('value' in object_diff('a', 'b'))
-    assert_true('None' in object_diff(None, 'b'))
-    assert_true('array mismatch' in object_diff(np.array([1]), np.array([2])))
+    """Test object diff calculation."""
+    assert ('type' in object_diff(1, 1.))
+    assert ('missing' in object_diff({1: 1}, {}))
+    assert ('missing' in object_diff({}, {1: 1}))
+    assert ('length' in object_diff([], [1]))
+    assert ('value' in object_diff('a', 'b'))
+    assert ('None' in object_diff(None, 'b'))
+    assert ('array mismatch' in object_diff(np.array([1]), np.array([2])))
     if sparse is not None:
         a = sparse.coo_matrix([[1]])
         b = sparse.coo_matrix([[1, 2]])
-        assert_true('shape mismatch' in object_diff(a, b))
+        assert ('shape mismatch' in object_diff(a, b))
         c = sparse.coo_matrix([[1, 1]])
-        assert_true('1 element' in object_diff(b, c))
+        assert ('1 element' in object_diff(b, c))
     if not isinstance(DataFrame, type(None)):
         for ob_type in (DataFrame, Series):
             a = ob_type([1])
             b = ob_type([1, 2])
-            assert_true('shape mismatch' in object_diff(a, b))
+            assert ('shape mismatch' in object_diff(a, b))
             c = ob_type([1, 3])
-            assert_true('1 element' in object_diff(b, c))
-    assert_raises(RuntimeError, object_diff, object, object)
+            assert ('1 element' in object_diff(b, c))
+    pytest.raises(RuntimeError, object_diff, object, object)
 
 
 def test_numpy_values():
@@ -168,7 +168,7 @@ def test_multi_dim_array():
     test_file = op.join(tempdir, 'test.hdf5')
     write_hdf5(test_file, traj, title='first', overwrite='update')
     for traj_read, traj_sub in zip(read_hdf5(test_file, 'first'), traj):
-        assert_true(np.equal(traj_read, traj_sub).all())
+        assert (np.equal(traj_read, traj_sub).all())
     traj_no_structure = np.array([rng.randn(2, 1, 1), rng.randn(3, 1, 2)])
-    assert_raises(ValueError, write_hdf5, test_file, traj_no_structure,
+    pytest.raises(ValueError, write_hdf5, test_file, traj_no_structure,
                   title='second', overwrite='update')
