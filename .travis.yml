@@ -9,7 +9,7 @@ env:
   matrix:
     - PYTHON=2.7
     - PYTHON=3.6
-    - PYTHON=2.6 NUMPY="=1.7" DEPS="minimal"
+    - PYTHON=3.7 NUMPY="=1.7" DEPS="minimal"
 
 # Setup anaconda
 before_install:
