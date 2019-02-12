@@ -3,7 +3,7 @@
 # caution: testing won't work on windows, see README
 
 PYTHON ?= python
-NOSETESTS ?= nosetests
+PYTEST ?= pytest
 CTAGS ?= ctags
 
 all: clean inplace test test-doc
@@ -32,7 +32,7 @@ inplace:
 
 test: in
 	rm -f .coverage
-	$(NOSETESTS) h5io --with-coverage
+	$(pytest) h5io
 
 flake:
 	@if command -v flake8 > /dev/null; then \

@@ -7,9 +7,8 @@ env:
   global:
     - secure: Be4uwrInKtcstyo449YTuqntKRAEXVg4dtQVoioAcFtfhOPu2z85U8cCXdS2SHS5Wcgh1ssp2k9rGUuLzXuBkDJSh91Nsf1gz1ghRhBxrbr0VgU6n89HDomI1GSZ2KASdzeJn4SNsV5E0Wd7TSqbgsx3O0hPJxK68buRu4arW3qZSwgwI9KeG0FIq8tpmkoana64+XAv+c+jndOg7bv6q6NPKKwMMv33sB4ZHLzy4/HM/myRzgxygdrEK6TeI6tBOPen/GoW8UGHmozKc1jy6pYquEAGFUgAvtNDFjWzIs9idl7sWNKPId5KNV4fx+yMmmZmtToYOEVeJ4tJI2pH07ruUXdLQ1gBCH7YTN3NrLy8yM2okmogKbBwHibmNfDwfqIiNXMk6Z2Pd8TXT57lxmyAMAuhB1dcR/IHCHsEyAQEGGcGemF5uEsJ661gdfZ8tzkExNUxQtQhPGKxyusVEnH/y3cYZdx+nSNRuhYR6NRtuUvEIoiqSoZ9BVXyDZp68SzWIyZJa+q9SWIwUFjZhcAusI5lYkryLF3SmPneQj1cn1oA1Fd3rv61m+8a0O60VijuX/aNbjjcF6VvRj9KqwutKZjirKds4POvE1Xc6zsLAsp1ktOArUqn8wJNUey1dAJBdT3MyYeJzJRjH7S8CR2ibMjA9OgcRlIWMkROdJc=
   matrix:
-    - PYTHON=2.7
-    - PYTHON=3.6
-    - PYTHON=2.6 NUMPY="=1.7" DEPS="minimal"
+    - PYTHON=3.6 NUMPY="=1.12" DEPS="minimal"
+    - PYTHON=3.7
 
 # Setup anaconda
 before_install:
@@ -20,7 +19,7 @@ before_install:
   - conda update --yes --quiet conda
 
 install:
-    - INSTALLS="nose numpy$NUMPY h5py pep8 pyflakes flake8 coverage"
+    - INSTALLS="pytest numpy$NUMPY h5py pep8 pyflakes flake8 coverage pytest-cov"
     - if [ "${DEPS}" != "minimal" ]; then
         INSTALLS="$INSTALLS scipy pandas pytables";
       else
@@ -33,7 +32,7 @@ install:
     - python setup.py install
 
 script:
-    - nosetests --verbosity=2 --with-coverage
+    - pytest h5io
     - make flake
 
 after_success:
@@ -46,11 +45,11 @@ deploy:
     allow_failure: true
     on:
       branch: master
-      condition: "${PYTHON} = 3.6"
+      condition: "${PYTHON} = 3.7"
   - provider: pypi
     user: pyiron
     password: ${PYPI_TOKEN}
     allow_failure: true
     on:
       tags: true
-      condition: "${PYTHON} = 3.6"
+      condition: "${PYTHON} = 3.7"

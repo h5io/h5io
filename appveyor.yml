@@ -9,8 +9,8 @@ environment:
       CMD_IN_ENV: 'cmd /E:ON /V:ON /C .\tools\appveyor\run_with_env.cmd'
       PYTHON: "C:\\conda"
       MINICONDA_VERSION: "latest"
-      CONDA_DEPENDENCIES: "setuptools numpy scipy pandas nose h5py coverage"
-      PIP_DEPENDENCIES: "tables codecov"
+      CONDA_DEPENDENCIES: "setuptools numpy scipy pandas pytest h5py coverage pytest-cov pytables"
+      PIP_DEPENDENCIES: "codecov"
   matrix:
       - PYTHON_VERSION: "3.6"
         PYTHON_ARCH: "64"
@@ -26,7 +26,7 @@ build: false  # Not a C# project, build stuff at the test step instead.
 
 test_script:
   # Run the project tests
-  - "nosetests"
+  - "pytest h5io"
 
 on_success:
   - "codecov"
