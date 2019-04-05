@@ -55,7 +55,7 @@ def _create_pandas_dataset(fname, root, key, title, data):
     h5py = _check_h5py()
     rootpath = '/'.join([root, key])
     data.to_hdf(fname, rootpath)
-    with h5py.File(fname, mode='a') as fid:
+    with h5py.File(fname, mode='a', libver='latest', swmr=True) as fid:
         fid[rootpath].attrs['TITLE'] = 'pd_dataframe'
 
 
@@ -103,7 +103,7 @@ def write_hdf5(fname, data, overwrite=False, compression=4,
     comp_kw = dict()
     if compression > 0:
         comp_kw = dict(compression='gzip', compression_opts=compression)
-    with h5py.File(fname, mode=mode) as fid:
+    with h5py.File(fname, mode=mode, libver='latest', swmr=True) as fid:
         if title in fid:
             del fid[title]
         cleanup_data = []
@@ -253,7 +253,7 @@ def read_hdf5(fname, title='h5io', slash='ignore'):
         raise IOError('file "%s" not found' % fname)
     if not isinstance(title, string_types):
         raise ValueError('title must be a string')
-    with h5py.File(fname, mode='r') as fid:
+    with h5py.File(fname, mode='r', libver='latest', swmr=True) as fid:
         if title not in fid:
             raise ValueError('no "%s" data found' % title)
         if isinstance(fid[title], h5py.Group):
@@ -505,7 +505,7 @@ def list_file_contents(h5file):
     h5py = _check_h5py()
     err = 'h5file must be an h5py File object, not {0}'
     if isinstance(h5file, str):
-        with h5py.File(h5file, 'r') as f:
+        with h5py.File(h5file, 'r', libver='latest', swmr=True) as f:
             _list_file_contents(f)
     else:
         if not isinstance(h5file, h5py.File):
