@@ -51,16 +51,16 @@ def _create_titled_dataset(root, key, title, data, comp_kw=None):
     return out
 
 
-def _create_pandas_dataset(fname, root, key, title, data):
+def _create_pandas_dataset(fname, root, key, title, data, **kwargs):
     h5py = _check_h5py()
     rootpath = '/'.join([root, key])
     data.to_hdf(fname, rootpath)
-    with h5py.File(fname, mode='a') as fid:
+    with h5py.File(fname, mode='a', **kwargs) as fid:
         fid[rootpath].attrs['TITLE'] = 'pd_dataframe'
 
 
 def write_hdf5(fname, data, overwrite=False, compression=4,
-               title='h5io', slash='error', use_json=False):
+               title='h5io', slash='error', use_json=False, **kwargs):
     """Write python object to HDF5 format using h5py
 
     Parameters
@@ -103,7 +103,7 @@ def write_hdf5(fname, data, overwrite=False, compression=4,
     comp_kw = dict()
     if compression > 0:
         comp_kw = dict(compression='gzip', compression_opts=compression)
-    with h5py.File(fname, mode=mode) as fid:
+    with h5py.File(fname, mode=mode, **kwargs) as fid:
         if title in fid:
             del fid[title]
         cleanup_data = []
@@ -117,7 +117,7 @@ def write_hdf5(fname, data, overwrite=False, compression=4,
         title = list(data.keys())[0]
         if title in ['pd_dataframe', 'pd_series']:
             rootname, key, value = data[title]
-            _create_pandas_dataset(fname, rootname, key, title, value)
+            _create_pandas_dataset(fname, rootname, key, title, value, **kwargs)
 
 
 def _triage_write(key, value, root, comp_kw, where,
@@ -228,7 +228,7 @@ def _triage_write(key, value, root, comp_kw, where,
 # READING
 
 
-def read_hdf5(fname, title='h5io', slash='ignore'):
+def read_hdf5(fname, title='h5io', slash='ignore', **kwargs):
     """Read python object from HDF5 format using h5py
 
     Parameters
@@ -253,7 +253,7 @@ def read_hdf5(fname, title='h5io', slash='ignore'):
         raise IOError('file "%s" not found' % fname)
     if not isinstance(title, string_types):
         raise ValueError('title must be a string')
-    with h5py.File(fname, mode='r') as fid:
+    with h5py.File(fname, mode='r', **kwargs) as fid:
         if title not in fid:
             raise ValueError('no "%s" data found' % title)
         if isinstance(fid[title], h5py.Group):
@@ -492,7 +492,7 @@ def _list_file_contents(h5file):
     print(out_str)
 
 
-def list_file_contents(h5file):
+def list_file_contents(h5file, **kwargs):
     """List the contents of an h5io file.
 
     This will list the root and one-level-deep contents of the file.
@@ -505,7 +505,7 @@ def list_file_contents(h5file):
     h5py = _check_h5py()
     err = 'h5file must be an h5py File object, not {0}'
     if isinstance(h5file, str):
-        with h5py.File(h5file, 'r') as f:
+        with h5py.File(h5file, 'r', **kwargs) as f:
             _list_file_contents(f)
     else:
         if not isinstance(h5file, h5py.File):
