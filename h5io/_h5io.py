@@ -117,7 +117,7 @@ def write_hdf5(fname, data, overwrite=False, compression=4,
         title = list(data.keys())[0]
         if title in ['pd_dataframe', 'pd_series']:
             rootname, key, value = data[title]
-            _create_pandas_dataset(fname, rootname, key, title, value, 
+            _create_pandas_dataset(fname, rootname, key, title, value,
                                    **kwargs)
 
 
