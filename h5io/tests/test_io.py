@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import datetime
 from os import path as op
 import pytest
 
@@ -15,13 +16,12 @@ except ImportError:
     DataFrame = Series = None
 
 from h5io import (write_hdf5, read_hdf5,
-                  _TempDir, object_diff, list_file_contents)
+                  object_diff, list_file_contents)
 
 
-def test_hdf5():
-    """Test HDF5 IO
-    """
-    tempdir = _TempDir()
+def test_hdf5(tmpdir):
+    """Test HDF5 IO."""
+    tempdir = str(tmpdir)
     test_file = op.join(tempdir, 'test.hdf5')
     sp = np.eye(3) if sparse is None else sparse.eye(3, 3, format='csc')
     sp_csr = np.eye(3) if sparse is None else sparse.eye(3, 3, format='csr')
@@ -84,10 +84,9 @@ def test_hdf5():
     assert_equal(read_hdf5(test_file, title='second'), 5)
 
 
-def test_hdf5_use_json():
-    """Test HDF5 IO
-    """
-    tempdir = _TempDir()
+def test_hdf5_use_json(tmpdir):
+    """Test HDF5 IO."""
+    tempdir = str(tmpdir)
     test_file = op.join(tempdir, 'test.hdf5')
     splash_dict = {'first/second': {'one/more': 'value'}}
     pytest.raises(ValueError, write_hdf5, test_file, splash_dict,
@@ -116,8 +115,8 @@ def test_hdf5_use_json():
                  spec_dict.keys())
 
 
-def test_path_support():
-    tempdir = _TempDir()
+def test_path_support(tmpdir):
+    tempdir = str(tmpdir)
     test_file = op.join(tempdir, 'test.hdf5')
     write_hdf5(test_file, 1, title='first')
     write_hdf5(test_file, 2, title='second/third', overwrite='update')
@@ -151,9 +150,9 @@ def test_object_diff():
     pytest.raises(RuntimeError, object_diff, object, object)
 
 
-def test_numpy_values():
-    tempdir = _TempDir()
-    test_file = op.join(tempdir, 'test.hdf5')
+def test_numpy_values(tmpdir):
+    """Test NumPy values."""
+    test_file = op.join(str(tmpdir), 'test.hdf5')
     for cast in [np.int8, np.int16, np.int32, np.int64, np.bool_,
                  np.float16, np.float32, np.float64]:
         value = cast(1)
@@ -161,14 +160,64 @@ def test_numpy_values():
         assert_equal(read_hdf5(test_file, 'first'), value)
 
 
-def test_multi_dim_array():
+def test_multi_dim_array(tmpdir):
+    """Test multidimensional arrays."""
     rng = np.random.RandomState(0)
     traj = np.array([rng.randn(2, 1), rng.randn(3, 1)])
-    tempdir = _TempDir()
-    test_file = op.join(tempdir, 'test.hdf5')
+    test_file = op.join(str(tmpdir), 'test.hdf5')
     write_hdf5(test_file, traj, title='first', overwrite='update')
     for traj_read, traj_sub in zip(read_hdf5(test_file, 'first'), traj):
         assert (np.equal(traj_read, traj_sub).all())
     traj_no_structure = np.array([rng.randn(2, 1, 1), rng.randn(3, 1, 2)])
     pytest.raises(ValueError, write_hdf5, test_file, traj_no_structure,
                   title='second', overwrite='update')
+
+
+class XT(datetime.tzinfo):
+
+    def utcoffset(self, dt):
+        return datetime.timedelta(hours=-5)  # Eastern on standard time
+
+    def tzname(self, dt):
+        return "UTC-05:00"
+
+    def dst(self, dt):
+        return None
+
+
+def test_datetime(tmpdir):
+    """Test datetime.datetime support."""
+    fname = op.join(str(tmpdir), 'test.hdf5')
+    # Naive
+    y, m, d, h, m, s, mu = range(1, 8)
+    dt = datetime.datetime(y, m, d, h, m, s, mu)
+    for key in ('year', 'month', 'day', 'hour', 'minute', 'second',
+                'microsecond'):
+        val = locals()[key[:1] if key != 'microsecond' else 'mu']
+        assert val == getattr(dt, key)
+    assert dt.year == y
+    assert dt.month == m
+    write_hdf5(fname, dt)
+    dt2 = read_hdf5(fname)
+    assert isinstance(dt2, datetime.datetime)
+    assert dt == dt2
+    assert dt2.tzinfo is None
+    # Aware
+    dt = dt.replace(tzinfo=datetime.timezone.utc)
+    write_hdf5(fname, dt, overwrite=True)
+    dt2 = read_hdf5(fname)
+    assert isinstance(dt2, datetime.datetime)
+    assert dt == dt2
+    assert dt2.tzinfo is datetime.timezone.utc
+    # Custom
+    dt = dt.replace(tzinfo=XT())
+    write_hdf5(fname, dt, overwrite=True)
+    dt2 = read_hdf5(fname)
+    assert isinstance(dt2, datetime.datetime)
+    assert dt == dt2
+    assert dt2.tzinfo is not None
+    assert dt2.tzinfo is not datetime.timezone.utc
+    for key in ('utcoffset', 'tzname', 'dst'):
+        v1 = getattr(dt2.tzinfo, key)(None)
+        v2 = getattr(dt.tzinfo, key)(None)
+        assert v1 == v2
