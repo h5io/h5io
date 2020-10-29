@@ -16,7 +16,7 @@ environment:
         PYTHON_ARCH: "64"
 
 install:
-  - "powershell .ci-helpers/install-miniconda.ps1"
+  - "powershell ci-helpers/install-miniconda.ps1"
   - "SET PATH=%PYTHON%;%PYTHON%\\Scripts;%PATH%"
   - "activate test"
   - "python setup.py develop"
