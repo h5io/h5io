@@ -23,6 +23,7 @@ jobs:
   steps:
   - powershell: |
       $env:PATH = $env:CONDA + ";" + $env:CONDA + "\Scripts;" + $env:CONDA + "\Library\bin;" + $env:PATH
+      conda init powershell
       conda activate base
       Write-Host ("##vso[task.setvariable variable=PATH]" + $env:PATH)
     displayName: Add conda to PATH and activate conda base
