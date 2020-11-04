@@ -22,12 +22,11 @@ jobs:
 
   steps:
   - powershell: |
-      $env:PATH = $env:CONDA + ";" + $env:CONDA + "\Scripts;" + $env:CONDA + "\Library\bin;" + $env:PATH
+      $env:PATH = $env:CONDA + "\Scripts;" + $env:PATH
       conda init powershell
-      conda activate base
-      Write-Host ("##vso[task.setvariable variable=PATH]" + $env:PATH)
+      conda init bash
     displayName: Add conda to PATH and activate conda base
-  - script: conda install -n base python=%PYTHON_VERSION% setuptools numpy scipy pandas pytest h5py coverage pytest-cov pytables codecov
+  - powershell: conda install -n base python=%PYTHON_VERSION% setuptools numpy scipy pandas pytest h5py coverage pytest-cov pytables codecov
     displayName: Setup conda environment
   - bash: |
       echo $PATH
@@ -37,7 +36,7 @@ jobs:
       python -c "import numpy"
       python setup.py develop
     displayName: Install h5io
-  - script: pytest h5io
+  - powershell: pytest h5io
     displayName: pytest
   - task: PublishTestResults@2
     inputs:
