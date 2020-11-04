@@ -22,7 +22,8 @@ jobs:
 
   steps:
   - bash: |
-      ${CONDA}/Scripts/conda init bash
+      export PATH=${CONDA}/Scripts/conda:${PATH}
+      conda init bash
       source ~/.bash_profile
       conda activate base
       echo "##vso[task.setvariable variable=PATH]${PATH}"
