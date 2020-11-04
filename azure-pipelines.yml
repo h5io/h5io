@@ -1,0 +1,37 @@
+trigger:
+  batch: False
+  branches:
+    include:
+      - '*'
+pr:
+  branches:
+    include:
+      - '*'
+
+jobs:
+- job:
+  displayName: Windows
+  pool:
+    vmImage: 'vs2017-win2016'
+  strategy:
+    matrix:
+      Python36:
+        python.version: '3.6'
+      Python38:
+        python.version: '3.8'
+
+  steps:
+  - powershell: Write-Host "##vso[task.prependpath]$env:CONDA\Scripts;$env:CONDA\Library\bin"
+    displayName: Add conda to PATH
+  - script: conda install python=%PYTHON_VERSION% setuptools numpy scipy pandas pytest h5py coverage pytest-cov pytables codecov
+    displayName: Setup conda environment
+  - script: python setup.py develop
+    displayName: Install h5io
+  - script: pytest h5io
+    displayName: pytest
+  - task: PublishTestResults@2
+    inputs:
+      testResultsFiles: 'junit-*.xml'
+      testRunTitle: 'Publish test results for $(Agent.JobName) $(PYTHON_VERSION)'
+      failTaskOnFailedTests: true
+    condition: succeededOrFailed()
