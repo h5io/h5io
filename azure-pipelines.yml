@@ -22,8 +22,8 @@ jobs:
 
   steps:
   - powershell: |
-      $env:PATH = $env:CONDA + ";" + $env:CONDA + "\Scripts;" + $env:CONDA + "\Library\bin;" + $env:CONDA
-      call conda activate base
+      $env:PATH = $env:CONDA + ";" + $env:CONDA + "\Scripts;" + $env:CONDA + "\Library\bin;" + $env:PATH
+      conda activate base
       Write-Host ("##vso[task.setvariable variable=PATH]" + $env:PATH)
     displayName: Add conda to PATH and activate conda base
   - script: conda install -n base python=%PYTHON_VERSION% setuptools numpy scipy pandas pytest h5py coverage pytest-cov pytables codecov
