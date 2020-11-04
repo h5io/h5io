@@ -25,7 +25,11 @@ jobs:
     displayName: Add conda to PATH
   - script: conda install python=%PYTHON_VERSION% setuptools numpy scipy pandas pytest h5py coverage pytest-cov pytables codecov
     displayName: Setup conda environment
-  - script: python setup.py develop
+  - script: |
+      which python
+      python --version
+      python -c "import numpy"
+      python setup.py develop
     displayName: Install h5io
   - script: pytest h5io
     displayName: pytest
