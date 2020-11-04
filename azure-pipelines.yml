@@ -22,7 +22,7 @@ jobs:
 
   steps:
   - bash: |
-      export PATH=${CONDA}/Scripts/conda:${PATH}
+      export PATH=${CONDA}/Scripts:${PATH}
       conda init bash
       source ~/.bash_profile
       conda activate base
