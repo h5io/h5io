@@ -23,9 +23,11 @@ jobs:
   steps:
   - powershell: Write-Host "##vso[task.prependpath]$env:CONDA\Scripts;$env:CONDA\Library\bin"
     displayName: Add conda to PATH
-  - script: conda install python=%PYTHON_VERSION% setuptools numpy scipy pandas pytest h5py coverage pytest-cov pytables codecov
+  - script: conda install -n base python=%PYTHON_VERSION% setuptools numpy scipy pandas pytest h5py coverage pytest-cov pytables codecov
     displayName: Setup conda environment
-  - script: |
+  - bash: |
+      echo $PATH
+      which conda
       which python
       python --version
       python -c "import numpy"
