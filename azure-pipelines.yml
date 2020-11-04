@@ -21,7 +21,7 @@ jobs:
         python.version: '3.8'
 
   steps:
-  - powershell: Write-Host "##vso[task.prependpath]$env:CONDA\Scripts;$env:CONDA\Library\bin"
+  - powershell: Write-Host "##vso[task.prependpath]$env:CONDA\Scripts;$env:CONDA\Library\bin;$env:CONDA\bin"
     displayName: Add conda to PATH
   - script: conda install -n base python=%PYTHON_VERSION% setuptools numpy scipy pandas pytest h5py coverage pytest-cov pytables codecov
     displayName: Setup conda environment
