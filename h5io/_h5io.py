@@ -52,16 +52,17 @@ def _create_titled_dataset(root, key, title, data, comp_kw=None):
     return out
 
 
-def _create_pandas_dataset(fname, root, key, title, data):
+def _create_pandas_dataset(fname, root, key, title, data, **kwargs):
     h5py = _check_h5py()
     rootpath = '/'.join([root, key])
     data.to_hdf(fname, rootpath)
-    with h5py.File(fname, mode='a') as fid:
+    with h5py.File(fname, mode='a', **kwargs) as fid:
         fid[rootpath].attrs['TITLE'] = 'pd_dataframe'
 
 
 def write_hdf5(fname, data, overwrite=False, compression=4,
-               title='h5io', slash='error', use_json=False):
+               title='h5io', slash='error', use_json=False,
+               **kwargs):
     """Write python object to HDF5 format using h5py.
 
     Parameters
@@ -90,6 +91,12 @@ def write_hdf5(fname, data, overwrite=False, compression=4,
     use_json : bool
         To accelerate the read and write performance of small dictionaries and
         lists they can be combined to JSON objects and stored as strings.
+    Additional keywords
+        Additional arguments passed to h5py.File() these can be but are not
+        limited to: driver, libver, userblock_size, swmr, rdcc_nbytes,
+         rdcc_w0, rdcc_nslots, track_order, fs_strategy, fs_persist,
+         fs_threshold
+        Please check the h5py.File() DocString for more details
     """
     h5py = _check_h5py()
     mode = 'w'
@@ -106,7 +113,7 @@ def write_hdf5(fname, data, overwrite=False, compression=4,
     comp_kw = dict()
     if compression > 0:
         comp_kw = dict(compression='gzip', compression_opts=compression)
-    with h5py.File(fname, mode=mode) as fid:
+    with h5py.File(fname, mode=mode, **kwargs) as fid:
         if title in fid:
             del fid[title]
         cleanup_data = []
@@ -120,7 +127,8 @@ def write_hdf5(fname, data, overwrite=False, compression=4,
         title = list(data.keys())[0]
         if title in ['pd_dataframe', 'pd_series']:
             rootname, key, value = data[title]
-            _create_pandas_dataset(fname, rootname, key, title, value)
+            _create_pandas_dataset(fname=fname, root=rootname, key=key,
+                                   title=title, data=value, **kwargs)
 
 
 def _triage_write(key, value, root, comp_kw, where,
@@ -235,7 +243,7 @@ def _triage_write(key, value, root, comp_kw, where,
 # READING
 
 
-def read_hdf5(fname, title='h5io', slash='ignore'):
+def read_hdf5(fname, title='h5io', slash='ignore', **kwargs):
     """Read python object from HDF5 format using h5py
 
     Parameters
@@ -249,6 +257,12 @@ def read_hdf5(fname, title='h5io', slash='ignore'):
         Whether to replace the string {FWDSLASH} with the value /. This does
         not apply to the top level name (title). If 'ignore', nothing will be
         replaced.
+    Additional keywords
+        Additional arguments passed to h5py.File() these can be but are not
+        limited to: driver, libver, userblock_size, swmr, rdcc_nbytes,
+         rdcc_w0, rdcc_nslots, track_order, fs_strategy, fs_persist,
+         fs_threshold
+        Please check the h5py.File() DocString for more details
 
     Returns
     -------
@@ -260,17 +274,17 @@ def read_hdf5(fname, title='h5io', slash='ignore'):
         raise IOError('file "%s" not found' % fname)
     if not isinstance(title, string_types):
         raise ValueError('title must be a string')
-    with h5py.File(fname, mode='r') as fid:
+    with h5py.File(fname, mode='r', **kwargs) as fid:
         if title not in fid:
             raise ValueError('no "%s" data found' % title)
         if isinstance(fid[title], h5py.Group):
             if 'TITLE' not in fid[title].attrs:
                 raise ValueError('no "%s" data found' % title)
-        data = _triage_read(fid[title], slash=slash)
+        data = _triage_read(node=fid[title], slash=slash, **kwargs)
     return data
 
 
-def _triage_read(node, slash='ignore'):
+def _triage_read(node, slash='ignore', **kwargs):
     if slash not in ['ignore', 'replace']:
         raise ValueError("slash must be one of 'replace', 'ignore'")
     h5py = _check_h5py()
@@ -318,7 +332,7 @@ def _triage_read(node, slash='ignore'):
             from pandas import read_hdf, HDFStore
             rootname = node.name
             filename = node.file.filename
-            with HDFStore(filename, 'r') as tmpf:
+            with HDFStore(filename, 'r', **kwargs) as tmpf:
                 data = read_hdf(tmpf, rootname)
         elif type_str == 'multiarray':
             ma_index = _triage_read(node.get('index', None), slash=slash)

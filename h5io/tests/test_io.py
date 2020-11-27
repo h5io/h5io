@@ -3,6 +3,7 @@ import datetime
 from os import path as op
 import pytest
 
+import h5py
 import numpy as np
 from numpy.testing import assert_equal
 try:
@@ -221,3 +222,12 @@ def test_datetime(tmpdir):
         v1 = getattr(dt2.tzinfo, key)(None)
         v2 = getattr(dt.tzinfo, key)(None)
         assert v1 == v2
+
+
+def test_kwargs(tmpdir):
+    """Test passing additional kwargs to h5py"""
+    test_file = op.join(str(tmpdir), 'test.hdf5')
+    with h5py.File(test_file, 'r', swmr=True):
+        value = np.array([1, 2, 3, 4])
+        write_hdf5(test_file, value, title='first', overwrite='update', swmr=True)
+        assert_equal(read_hdf5(test_file, 'first', swmr=True), value)
