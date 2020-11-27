@@ -228,8 +228,13 @@ def test_kwargs(tmpdir):
     """Test passing additional kwargs to h5py"""
     test_file = op.join(str(tmpdir), 'test.hdf5')
     value = np.array([1, 2])
-    write_hdf5(test_file, value, title='first', overwrite='update', swmr=True)
-    with h5py.File(test_file, 'r', swmr=True):
+    write_hdf5(test_file, value, title='first', 
+               overwrite='update', swmr=True)
+    with h5py.File(test_file, 'r', libver='latest', swmr=True):
         value = np.array([1, 2, 3, 4])
-        write_hdf5(test_file, value, title='first', overwrite='update', swmr=True)
-        assert_equal(read_hdf5(test_file, 'first', swmr=True), value)
+        write_hdf5(test_file, value, title='first', 
+                   overwrite='update', 
+                   libver='latest', swmr=True)
+        assert_equal(read_hdf5(test_file, 'first', 
+                               libver='latest', swmr=True), 
+                     value)
