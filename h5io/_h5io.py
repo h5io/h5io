@@ -613,7 +613,7 @@ def multiarray_load(index, array_merged):
         array_restore.append(array_merged[i_prev:i])
         i_prev = i
     array_restore.append(array_merged[i_prev:])
-    return np.array(array_restore)
+    return np.array(array_restore, dtype=object)
 
 
 ###############################################################################
