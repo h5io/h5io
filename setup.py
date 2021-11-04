@@ -35,6 +35,7 @@ if __name__ == "__main__":
           url=URL,
           version=versioneer.get_version(),
           download_url=DOWNLOAD_URL,
+          python_requires='>=3.7',
           long_description=open('README.rst').read(),
           zip_safe=False,  # the package can run out of an .egg file
           classifiers=['Intended Audience :: Science/Research',
