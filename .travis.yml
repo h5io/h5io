@@ -45,6 +45,7 @@ deploy:
     on:
       branch: master
       condition: "${PYTHON} = 3.7"
+    skip_cleanup: true
   - provider: pypi
     user: pyiron
     password: ${PYPI_TOKEN}
@@ -52,3 +53,4 @@ deploy:
     on:
       tags: true
       condition: "${PYTHON} = 3.7"
+    skip_cleanup: true
