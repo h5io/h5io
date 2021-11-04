@@ -3,19 +3,13 @@
 #
 # License: BSD (3-clause)
 
-from datetime import datetime, timezone, timedelta
+import datetime
 import json
-import sys
 import tempfile
 from shutil import rmtree
 from os import path as op
 
 import numpy as np
-
-# Adapted from six
-PY3 = sys.version_info[0] == 3
-text_type = str if PY3 else unicode  # noqa
-string_types = str if PY3 else basestring  # noqa
 
 special_chars = {'{FWDSLASH}': '/'}
 tab_str = '----'
@@ -75,7 +69,7 @@ def write_hdf5(fname, data, overwrite=False, compression=4,
     data : object
         Object to write. Can be of any of these types:
 
-            {ndarray, dict, list, tuple, int, float, str, Datetime}
+            {ndarray, dict, list, tuple, int, float, str, datetime, timezone}
 
         Note that dict objects must only have ``str`` keys. It is recommended
         to use ndarrays where possible, as it is handled most efficiently.
@@ -98,14 +92,14 @@ def write_hdf5(fname, data, overwrite=False, compression=4,
     h5py = _check_h5py()
     mode = 'w'
     if op.isfile(fname):
-        if isinstance(overwrite, string_types):
+        if isinstance(overwrite, str):
             if overwrite != 'update':
                 raise ValueError('overwrite must be "update" or a bool')
             mode = 'a'
         elif not overwrite:
             raise IOError('file "%s" exists, use overwrite=True to overwrite'
                           % fname)
-    if not isinstance(title, string_types):
+    if not isinstance(title, str):
         raise ValueError('title must be a string')
     comp_kw = dict()
     if compression > 0:
@@ -149,7 +143,7 @@ def _triage_write(key, value, root, comp_kw, where,
     elif isinstance(value, dict):
         sub_root = _create_titled_group(root, key, 'dict')
         for key, sub_value in value.items():
-            if not isinstance(key, string_types):
+            if not isinstance(key, str):
                 raise TypeError('All dict keys must be strings')
             _triage_write(
                 'key_{0}'.format(key), sub_value, sub_root, comp_kw,
@@ -169,15 +163,19 @@ def _triage_write(key, value, root, comp_kw, where,
         else:  # isinstance(value, float):
             title = 'float'
         _create_titled_dataset(root, key, title, np.atleast_1d(value))
-    elif isinstance(value, datetime):
+    elif isinstance(value, datetime.datetime):
         title = 'datetime'
         value = np.frombuffer(value.isoformat().encode('utf-8'), np.uint8)
+        _create_titled_dataset(root, key, title, value)
+    elif isinstance(value, datetime.timezone):
+        title = 'timezone'  # the __repr__ is complete
+        value = np.frombuffer(repr(value).encode('utf-8'), np.uint8)
         _create_titled_dataset(root, key, title, value)
     elif isinstance(value, (np.integer, np.floating, np.bool_)):
         title = 'np_{0}'.format(value.__class__.__name__)
         _create_titled_dataset(root, key, title, np.atleast_1d(value))
-    elif isinstance(value, string_types):
-        if isinstance(value, text_type):  # unicode
+    elif isinstance(value, str):
+        if isinstance(value, str):  # unicode
             value = np.frombuffer(value.encode('utf-8'), np.uint8)
             title = 'unicode'
         else:
@@ -263,7 +261,7 @@ def read_hdf5(fname, title='h5io', slash='ignore'):
     h5py = _check_h5py()
     if not op.isfile(fname):
         raise IOError('file "%s" not found' % fname)
-    if not isinstance(title, string_types):
+    if not isinstance(title, str):
         raise ValueError('title must be a string')
     with h5py.File(fname, mode='r') as fid:
         if title not in fid:
@@ -339,16 +337,18 @@ def _triage_read(node, slash='ignore'):
         cast = int if type_str == 'int' else float
         data = cast(np.array(node)[0])
     elif type_str == 'datetime':
-        data = text_type(np.array(node).tobytes().decode('utf-8'))
-        data = fromisoformat(data)
+        data = str(np.array(node).tobytes().decode('utf-8'))
+        data = datetime.datetime.fromisoformat(data)
+    elif type_str == 'timezone':
+        data = eval(str(np.array(node).tobytes().decode('utf-8')),
+                    {'datetime': datetime})
     elif type_str.startswith('np_'):
         np_type = type_str.split('_')[1]
         cast = getattr(np, np_type)
         data = cast(np.array(node)[0])
     elif type_str in ('unicode', 'ascii', 'str'):  # 'str' for backward compat
         decoder = 'utf-8' if type_str == 'unicode' else 'ASCII'
-        cast = text_type if type_str == 'unicode' else str
-        data = cast(np.array(node).tobytes().decode(decoder))
+        data = str(np.array(node).tobytes().decode(decoder))
     elif type_str == 'json':
         node_unicode = str(np.array(node).tobytes().decode('utf-8'))
         data = json.loads(node_unicode)
@@ -414,7 +414,7 @@ def object_diff(a, b, pre=''):
         else:
             for xx1, xx2 in zip(a, b):
                 out += object_diff(xx1, xx2, pre='')
-    elif isinstance(a, (string_types, int, float, bytes)):
+    elif isinstance(a, (str, int, float, bytes)):
         if a != b:
             out += pre + ' value mismatch (%s, %s)\n' % (a, b)
     elif a is None:
@@ -494,8 +494,7 @@ def _list_file_contents(h5file):
         elif type_str in ('unicode', 'ascii', 'str'):
             desc = 'Text: %s'
             decoder = 'utf-8' if type_str == 'unicode' else 'ASCII'
-            cast = text_type if type_str == 'unicode' else str
-            data = cast(np.array(data).tobytes().decode(decoder))
+            data = str(np.array(data).tobytes().decode(decoder))
             desc_val = data[:10] + '...' if len(data) > 10 else data
         else:
             desc = 'Items: %s'
@@ -530,7 +529,7 @@ def list_file_contents(h5file):
 
 
 def _json_compatible(obj, slash='error'):
-    if isinstance(obj, (string_types, int, float, bool, type(None))):
+    if isinstance(obj, (str, int, float, bool, type(None))):
         return True
     elif isinstance(obj, list):
         return all([_json_compatible(item) for item in obj])
@@ -614,133 +613,3 @@ def multiarray_load(index, array_merged):
         i_prev = i
     array_restore.append(array_merged[i_prev:])
     return np.array(array_restore, dtype=object)
-
-
-###############################################################################
-# BACKPORTS
-
-try:
-    fromisoformat = datetime.fromisoformat
-except AttributeError:  # Python < 3.7
-    # Code adapted from CPython
-    # https://github.com/python/cpython/blob/master/Lib/datetime.py
-
-    def _parse_hh_mm_ss_ff(tstr):
-        # Parses things of the form HH[:MM[:SS[.fff[fff]]]]
-        len_str = len(tstr)
-
-        time_comps = [0, 0, 0, 0]
-        pos = 0
-        for comp in range(0, 3):
-            if (len_str - pos) < 2:
-                raise ValueError('Incomplete time component')
-
-            time_comps[comp] = int(tstr[pos:pos + 2])
-
-            pos += 2
-            next_char = tstr[pos:pos + 1]
-
-            if not next_char or comp >= 2:
-                break
-
-            if next_char != ':':
-                raise ValueError('Invalid time separator: %c' % next_char)
-
-            pos += 1
-
-        if pos < len_str:
-            if tstr[pos] != '.':
-                raise ValueError('Invalid microsecond component')
-            else:
-                pos += 1
-
-                len_remainder = len_str - pos
-                if len_remainder not in (3, 6):
-                    raise ValueError('Invalid microsecond component')
-
-                time_comps[3] = int(tstr[pos:])
-                if len_remainder == 3:
-                    time_comps[3] *= 1000
-
-        return time_comps
-
-    def fromisoformat(date_string):
-        """Construct a datetime from the output of datetime.isoformat()."""
-        if not isinstance(date_string, str):
-            raise TypeError('fromisoformat: argument must be str')
-
-        # Split this at the separator
-        dstr = date_string[0:10]
-        tstr = date_string[11:]
-
-        try:
-            date_components = _parse_isoformat_date(dstr)
-        except ValueError:
-            raise ValueError(
-                'Invalid isoformat string: {!r}'.format(date_string))
-
-        if tstr:
-            try:
-                time_components = _parse_isoformat_time(tstr)
-            except ValueError:
-                raise ValueError(
-                    'Invalid isoformat string: {!r}'.format(date_string))
-        else:
-            time_components = [0, 0, 0, 0, None]
-
-        return datetime(*(date_components + time_components))
-
-    def _parse_isoformat_date(dtstr):
-        # It is assumed that this function will only be called with a
-        # string of length exactly 10, and (though this is not used) ASCII-only
-        year = int(dtstr[0:4])
-        if dtstr[4] != '-':
-            raise ValueError('Invalid date separator: %s' % dtstr[4])
-
-        month = int(dtstr[5:7])
-
-        if dtstr[7] != '-':
-            raise ValueError('Invalid date separator')
-
-        day = int(dtstr[8:10])
-
-        return [year, month, day]
-
-    def _parse_isoformat_time(tstr):
-        # Format supported is HH[:MM[:SS[.fff[fff]]]][+HH:MM[:SS[.ffffff]]]
-        len_str = len(tstr)
-        if len_str < 2:
-            raise ValueError('Isoformat time too short')
-
-        # This is equivalent to re.search('[+-]', tstr), but faster
-        tz_pos = (tstr.find('-') + 1 or tstr.find('+') + 1)
-        timestr = tstr[:tz_pos - 1] if tz_pos > 0 else tstr
-
-        time_comps = _parse_hh_mm_ss_ff(timestr)
-
-        tzi = None
-        if tz_pos > 0:
-            tzstr = tstr[tz_pos:]
-
-            # Valid time zone strings are:
-            # HH:MM               len: 5
-            # HH:MM:SS            len: 8
-            # HH:MM:SS.ffffff     len: 15
-
-            if len(tzstr) not in (5, 8, 15):
-                raise ValueError('Malformed time zone string')
-
-            tz_comps = _parse_hh_mm_ss_ff(tzstr)
-            if all(x == 0 for x in tz_comps):
-                tzi = timezone.utc
-            else:
-                tzsign = -1 if tstr[tz_pos - 1] == '-' else 1
-
-                td = timedelta(hours=tz_comps[0], minutes=tz_comps[1],
-                               seconds=tz_comps[2], microseconds=tz_comps[3])
-
-                tzi = timezone(tzsign * td)
-
-        time_comps.append(tzi)
-
-        return time_comps

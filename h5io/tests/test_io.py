@@ -163,12 +163,13 @@ def test_numpy_values(tmpdir):
 def test_multi_dim_array(tmpdir):
     """Test multidimensional arrays."""
     rng = np.random.RandomState(0)
-    traj = np.array([rng.randn(2, 1), rng.randn(3, 1)])
+    traj = np.array([rng.randn(2, 1), rng.randn(3, 1)], dtype=object)
     test_file = op.join(str(tmpdir), 'test.hdf5')
     write_hdf5(test_file, traj, title='first', overwrite='update')
     for traj_read, traj_sub in zip(read_hdf5(test_file, 'first'), traj):
         assert (np.equal(traj_read, traj_sub).all())
-    traj_no_structure = np.array([rng.randn(2, 1, 1), rng.randn(3, 1, 2)])
+    traj_no_structure = np.array(
+        [rng.randn(2, 1, 1), rng.randn(3, 1, 2)], dtype=object)
     pytest.raises(ValueError, write_hdf5, test_file, traj_no_structure,
                   title='second', overwrite='update')
 
@@ -221,3 +222,19 @@ def test_datetime(tmpdir):
         v1 = getattr(dt2.tzinfo, key)(None)
         v2 = getattr(dt.tzinfo, key)(None)
         assert v1 == v2
+
+
+@pytest.mark.parametrize('name', (None, 'foo'))
+def test_timezone(name, tmpdir):
+    """Test datetime.timezone support."""
+    fname = op.join(str(tmpdir), 'test.hdf5')
+    kwargs = dict()
+    if name is not None:
+        kwargs['name'] = name
+    x = datetime.timezone(datetime.timedelta(hours=-7), **kwargs)
+    write_hdf5(fname, x)
+    y = read_hdf5(fname)
+    assert isinstance(y, datetime.timezone)
+    assert y == x
+    if name is not None:
+        assert y.tzname(None) == name
