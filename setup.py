@@ -7,8 +7,7 @@
 import os
 import pathlib
 
-import setuptools  # noqa; we are using a setuptools namespace
-from numpy.distutils.core import setup
+from setuptools import setup
 
 
 descr = """Python Objects Onto HDF5"""
@@ -45,6 +44,7 @@ if __name__ == "__main__":
           version=version,
           download_url=DOWNLOAD_URL,
           python_requires='>=3.7',
+          install_requires=['numpy'],
           long_description=open('README.rst').read(),
           zip_safe=False,  # the package can run out of an .egg file
           classifiers=['Intended Audience :: Science/Research',
