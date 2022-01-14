@@ -41,6 +41,7 @@ deploy:
   - provider: pypi
     user: pyiron
     password: ${PYPI_TOKEN}
+    distributions: "sdist bdist_wheel"
     allow_failure: true
     on:
       branch: master
@@ -49,6 +50,7 @@ deploy:
   - provider: pypi
     user: pyiron
     password: ${PYPI_TOKEN}
+    distributions: "sdist bdist_wheel"
     allow_failure: true
     on:
       tags: true
