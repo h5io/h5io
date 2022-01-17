@@ -44,7 +44,7 @@ if __name__ == "__main__":
           version=version,
           download_url=DOWNLOAD_URL,
           python_requires='>=3.7',
-          install_requires=['numpy'],
+          install_requires=['numpy', 'h5py'],
           long_description=open('README.rst').read(),
           zip_safe=False,  # the package can run out of an .egg file
           classifiers=['Intended Audience :: Science/Research',
