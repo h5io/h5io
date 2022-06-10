@@ -90,27 +90,38 @@ def write_hdf5(fname, data, overwrite=False, compression=4,
         lists they can be combined to JSON objects and stored as strings.
     """
     h5py = _check_h5py()
-    mode = 'w'
-    if op.isfile(fname):
-        if isinstance(overwrite, str):
-            if overwrite != 'update':
-                raise ValueError('overwrite must be "update" or a bool')
-            mode = 'a'
-        elif not overwrite:
-            raise IOError('file "%s" exists, use overwrite=True to overwrite'
-                          % fname)
+    if isinstance(fname, str):
+        mode = 'w'
+        if op.isfile(fname):
+            if isinstance(overwrite, str):
+                if overwrite != 'update':
+                    raise ValueError('overwrite must be "update" or a bool')
+                mode = 'a'
+            elif not overwrite:
+                raise IOError('file "%s" exists, use overwrite=True to overwrite'
+                            % fname)
+    elif isinstance(fname, h5py.File):
+        if fname.mode == 'r':
+            raise UnsupportedOperation('not writable')
+        if fname.mode == 'w' and not overwrite:
+            raise ValueError('file must be opened with "r+", if overwrite is False')
     if not isinstance(title, str):
         raise ValueError('title must be a string')
     comp_kw = dict()
     if compression > 0:
         comp_kw = dict(compression='gzip', compression_opts=compression)
-    with h5py.File(fname, mode=mode) as fid:
+    def _write(fid):
         if title in fid:
             del fid[title]
         cleanup_data = []
         _triage_write(title, data, fid, comp_kw, str(type(data)),
                       cleanup_data, slash=slash, title=title,
                       use_json=use_json)
+    if isinstance(fname, h5py.File):
+        _write(fname)
+    else:
+        with h5py.File(fname, mode=mode) as fid:
+            _write(fid)
 
     # Will not be empty if any extra data to be written
     for data in cleanup_data:
