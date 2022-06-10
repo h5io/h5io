@@ -105,6 +105,8 @@ def write_hdf5(fname, data, overwrite=False, compression=4,
             raise UnsupportedOperation('not writable')
         if fname.mode == 'w' and not overwrite:
             raise ValueError('file must be opened with "r+", if overwrite is False')
+    else:
+        raise ValueError('fname must be str or h5py.File')
     if not isinstance(title, str):
         raise ValueError('title must be a string')
     comp_kw = dict()
@@ -270,18 +272,27 @@ def read_hdf5(fname, title='h5io', slash='ignore'):
         The loaded data. Can be of any type supported by ``write_hdf5``.
     """
     h5py = _check_h5py()
-    if not op.isfile(fname):
-        raise IOError('file "%s" not found' % fname)
+    if isinstance(fname, str):
+        if not op.isfile(fname):
+            raise IOError('file "%s" not found' % fname)
+    elif isinstance(fname, h5py.File) and fname.mode == 'w':
+        raise UnsupportedOperation('file must not be opened be opened with "w"')
+    else:
+        raise ValueError('fname must be str or h5py.File')
     if not isinstance(title, str):
         raise ValueError('title must be a string')
-    with h5py.File(fname, mode='r') as fid:
+    def _read(fid):
         if title not in fid:
             raise ValueError('no "%s" data found' % title)
         if isinstance(fid[title], h5py.Group):
             if 'TITLE' not in fid[title].attrs:
                 raise ValueError('no "%s" data found' % title)
-        data = _triage_read(fid[title], slash=slash)
-    return data
+        return _triage_read(fid[title], slash=slash)
+    if isinstance(fname, h5py.File):
+        return _read(fname)
+    else:
+        with h5py.File(fname, mode='r') as fid:
+            return _read(fid)
 
 
 def _triage_read(node, slash='ignore'):
