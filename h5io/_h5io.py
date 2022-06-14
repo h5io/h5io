@@ -100,11 +100,8 @@ def write_hdf5(fname, data, overwrite=False, compression=4,
             elif not overwrite:
                 raise IOError('file "%s" exists, use overwrite=True to overwrite'
                             % fname)
-    elif isinstance(fname, h5py.File):
-        if fname.mode == 'r':
-            raise UnsupportedOperation('not writable')
-        if fname.mode == 'w' and not overwrite:
-            raise ValueError('file must be opened with "r+", if overwrite is False')
+    elif isinstance(fname, h5py.File) and fname.mode == 'r':
+        raise UnsupportedOperation('not writable')
     else:
         raise ValueError('fname must be str or h5py.File')
     if not isinstance(title, str):
