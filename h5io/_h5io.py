@@ -112,18 +112,18 @@ def write_hdf5(fname, data, overwrite=False, compression=4,
     comp_kw = dict()
     if compression > 0:
         comp_kw = dict(compression='gzip', compression_opts=compression)
-    def _write(fid):
+    def _write(fid, cleanup_data):
         if title in fid:
             del fid[title]
-        cleanup_data = []
         _triage_write(title, data, fid, comp_kw, str(type(data)),
                       cleanup_data, slash=slash, title=title,
                       use_json=use_json)
+    cleanup_data = []
     if isinstance(fname, h5py.File):
-        _write(fname)
+        _write(fname, cleanup_data)
     else:
         with h5py.File(fname, mode=mode) as fid:
-            _write(fid)
+            _write(fid, cleanup_data)
 
     # Will not be empty if any extra data to be written
     for data in cleanup_data:
