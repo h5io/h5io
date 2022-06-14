@@ -83,6 +83,28 @@ def test_hdf5(tmpdir):
     write_hdf5(test_file, 5, title='second', overwrite='update', compression=5)
     assert_equal(read_hdf5(test_file, title='second'), 5)
 
+def test_h5_file_object(tmpdir):
+    tempdir = str(tmpdir)
+    test_file_path = op.join(tempdir, 'test1.hdf5')
+    # test that wrong object type raises error
+    pytest.raises(ValueError, write_hdf5, fname=33, data=1)
+    # test that reading/writing are unaffected
+    with h5py.File(test_file_path, 'a') as test_file_obj:
+        data = {'a': 42}
+        write_hdf5(test_file_path, data)
+        assert_equal(read_hdf5(test_file_obj), data)
+    # test that wrong mode raises error
+    with h5py.File(test_file_path, 'r') as test_file_obj:
+        pytest.raises(UnsupportedOperation,
+                      write_hdf5, fname=test_file_obj, data=1)
+    with h5py.File(test_file_path, 'w') as test_file_obj:
+        pytest.raises(UnsupportedOperation,
+                      read_hdf5, fname=test_file_obj)
+    with h5py.File(test_file_path, 'w') as test_file_obj:
+        pytest.raises(ValueError,
+                      write_hdf5, fname=test_file_obj, data=33, overwrite=False)
+
+
 
 def test_hdf5_use_json(tmpdir):
     """Test HDF5 IO."""
