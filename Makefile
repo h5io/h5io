@@ -32,7 +32,7 @@ inplace:
 
 test: in
 	rm -f .coverage
-	$(pytest) h5io
+	$(PYTEST) h5io
 
 flake:
 	@if command -v flake8 > /dev/null; then \

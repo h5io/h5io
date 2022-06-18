@@ -8,6 +8,7 @@ import json
 import tempfile
 from shutil import rmtree
 from os import path as op
+from io import UnsupportedOperation
 
 import numpy as np
 

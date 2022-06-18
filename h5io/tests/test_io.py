@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import datetime
 from os import path as op
+from io import UnsupportedOperation
 import pytest
 
 import numpy as np
@@ -15,6 +16,7 @@ try:
 except ImportError:
     DataFrame = Series = None
 
+import h5py
 from h5io import (write_hdf5, read_hdf5,
                   object_diff, list_file_contents)
 
