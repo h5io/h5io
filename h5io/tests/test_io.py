@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import datetime
 from os import path as op
+from io import UnsupportedOperation
 import pytest
 
 import numpy as np
@@ -15,6 +16,7 @@ try:
 except ImportError:
     DataFrame = Series = None
 
+import h5py
 from h5io import (write_hdf5, read_hdf5,
                   object_diff, list_file_contents)
 
@@ -82,6 +84,29 @@ def test_hdf5(tmpdir):
 
     write_hdf5(test_file, 5, title='second', overwrite='update', compression=5)
     assert_equal(read_hdf5(test_file, title='second'), 5)
+
+
+def test_h5_file_object(tmpdir):
+    tempdir = str(tmpdir)
+    test_file_path = op.join(tempdir, 'test1.hdf5')
+    # test that wrong object type raises error
+    pytest.raises(ValueError, write_hdf5, fname=33, data=1)
+    # test that reading/writing are unaffected
+    with h5py.File(test_file_path, 'a') as test_file_obj:
+        data = {'a': 42}
+        write_hdf5(test_file_obj, data)
+        assert_equal(read_hdf5(test_file_obj), data)
+    # test that wrong mode raises error
+    with h5py.File(test_file_path, 'r') as test_file_obj:
+        assert test_file_obj.mode == 'r'
+        with pytest.raises(UnsupportedOperation):
+            write_hdf5(test_file_obj, data=1)
+    # at least on some OSes (e.g., macOS) opening with mode='w' leads to
+    # test_file_obj.mode == 'r+', so let's skip this for now
+    # with h5py.File(test_file_path, 'w') as test_file_obj:
+    #     print(test_file_obj.mode)
+    #     with pytest.raises(UnsupportedOperation):
+    #         read_hdf5(test_file_obj)
 
 
 def test_hdf5_use_json(tmpdir):

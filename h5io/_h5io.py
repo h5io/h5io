@@ -8,6 +8,7 @@ import json
 import tempfile
 from shutil import rmtree
 from os import path as op
+from io import UnsupportedOperation
 
 import numpy as np
 
@@ -90,27 +91,40 @@ def write_hdf5(fname, data, overwrite=False, compression=4,
         lists they can be combined to JSON objects and stored as strings.
     """
     h5py = _check_h5py()
-    mode = 'w'
-    if op.isfile(fname):
-        if isinstance(overwrite, str):
-            if overwrite != 'update':
-                raise ValueError('overwrite must be "update" or a bool')
-            mode = 'a'
-        elif not overwrite:
-            raise IOError('file "%s" exists, use overwrite=True to overwrite'
-                          % fname)
+    if isinstance(fname, str):
+        mode = 'w'
+        if op.isfile(fname):
+            if isinstance(overwrite, str):
+                if overwrite != 'update':
+                    raise ValueError('overwrite must be "update" or a bool')
+                mode = 'a'
+            elif not overwrite:
+                raise IOError(
+                    'file "%s" exists, use overwrite=True to overwrite' % fname
+                )
+    elif isinstance(fname, h5py.File):
+        if fname.mode == 'r':
+            raise UnsupportedOperation('not writable')
+    else:
+        raise ValueError(f'fname must be str or h5py.File, got {type(fname)}')
     if not isinstance(title, str):
         raise ValueError('title must be a string')
     comp_kw = dict()
     if compression > 0:
         comp_kw = dict(compression='gzip', compression_opts=compression)
-    with h5py.File(fname, mode=mode) as fid:
+
+    def _write(fid, cleanup_data):
         if title in fid:
             del fid[title]
-        cleanup_data = []
         _triage_write(title, data, fid, comp_kw, str(type(data)),
                       cleanup_data, slash=slash, title=title,
                       use_json=use_json)
+    cleanup_data = []
+    if isinstance(fname, h5py.File):
+        _write(fname, cleanup_data)
+    else:
+        with h5py.File(fname, mode=mode) as fid:
+            _write(fid, cleanup_data)
 
     # Will not be empty if any extra data to be written
     for data in cleanup_data:
@@ -259,18 +273,32 @@ def read_hdf5(fname, title='h5io', slash='ignore'):
         The loaded data. Can be of any type supported by ``write_hdf5``.
     """
     h5py = _check_h5py()
-    if not op.isfile(fname):
-        raise IOError('file "%s" not found' % fname)
+    if isinstance(fname, str):
+        if not op.isfile(fname):
+            raise IOError('file "%s" not found' % fname)
+    elif isinstance(fname, h5py.File):
+        if fname.mode == 'w':
+            raise UnsupportedOperation(
+                'file must not be opened be opened with "w"'
+            )
+        print(fname.mode)
+    else:
+        raise ValueError(f'fname must be str or h5py.File, got {type(fname)}')
     if not isinstance(title, str):
         raise ValueError('title must be a string')
-    with h5py.File(fname, mode='r') as fid:
+
+    def _read(fid):
         if title not in fid:
             raise ValueError('no "%s" data found' % title)
         if isinstance(fid[title], h5py.Group):
             if 'TITLE' not in fid[title].attrs:
                 raise ValueError('no "%s" data found' % title)
-        data = _triage_read(fid[title], slash=slash)
-    return data
+        return _triage_read(fid[title], slash=slash)
+    if isinstance(fname, h5py.File):
+        return _read(fname)
+    else:
+        with h5py.File(fname, mode='r') as fid:
+            return _read(fid)
 
 
 def _triage_read(node, slash='ignore'):
@@ -344,8 +372,8 @@ def _triage_read(node, slash='ignore'):
                     {'datetime': datetime})
     elif type_str.startswith('np_'):
         np_type = type_str.split('_')[1]
-        cast = getattr(np, np_type)
-        data = cast(np.array(node)[0])
+        cast = getattr(np, np_type) if np_type != 'bool' else bool
+        data = np.array(node)[0].astype(cast)
     elif type_str in ('unicode', 'ascii', 'str'):  # 'str' for backward compat
         decoder = 'utf-8' if type_str == 'unicode' else 'ASCII'
         data = str(np.array(node).tobytes().decode(decoder))
