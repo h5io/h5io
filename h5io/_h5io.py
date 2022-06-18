@@ -99,8 +99,9 @@ def write_hdf5(fname, data, overwrite=False, compression=4,
                     raise ValueError('overwrite must be "update" or a bool')
                 mode = 'a'
             elif not overwrite:
-                raise IOError('file "%s" exists, use overwrite=True to overwrite'
-                            % fname)
+                raise IOError(
+                    'file "%s" exists, use overwrite=True to overwrite' % fname
+                )
     elif isinstance(fname, h5py.File) and fname.mode == 'r':
         raise UnsupportedOperation('not writable')
     else:
@@ -110,6 +111,7 @@ def write_hdf5(fname, data, overwrite=False, compression=4,
     comp_kw = dict()
     if compression > 0:
         comp_kw = dict(compression='gzip', compression_opts=compression)
+
     def _write(fid, cleanup_data):
         if title in fid:
             del fid[title]
@@ -274,11 +276,14 @@ def read_hdf5(fname, title='h5io', slash='ignore'):
         if not op.isfile(fname):
             raise IOError('file "%s" not found' % fname)
     elif isinstance(fname, h5py.File) and fname.mode == 'w':
-        raise UnsupportedOperation('file must not be opened be opened with "w"')
+        raise UnsupportedOperation(
+            'file must not be opened be opened with "w"'
+        )
     else:
         raise ValueError('fname must be str or h5py.File')
     if not isinstance(title, str):
         raise ValueError('title must be a string')
+
     def _read(fid):
         if title not in fid:
             raise ValueError('no "%s" data found' % title)

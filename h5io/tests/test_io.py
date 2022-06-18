@@ -85,6 +85,7 @@ def test_hdf5(tmpdir):
     write_hdf5(test_file, 5, title='second', overwrite='update', compression=5)
     assert_equal(read_hdf5(test_file, title='second'), 5)
 
+
 def test_h5_file_object(tmpdir):
     tempdir = str(tmpdir)
     test_file_path = op.join(tempdir, 'test1.hdf5')
@@ -103,9 +104,8 @@ def test_h5_file_object(tmpdir):
         pytest.raises(UnsupportedOperation,
                       read_hdf5, fname=test_file_obj)
     with h5py.File(test_file_path, 'w') as test_file_obj:
-        pytest.raises(ValueError,
-                      write_hdf5, fname=test_file_obj, data=33, overwrite=False)
-
+        pytest.raises(ValueError, write_hdf5, fname=test_file_obj, data=33,
+                      overwrite=False)
 
 
 def test_hdf5_use_json(tmpdir):
