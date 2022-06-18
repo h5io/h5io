@@ -102,10 +102,11 @@ def write_hdf5(fname, data, overwrite=False, compression=4,
                 raise IOError(
                     'file "%s" exists, use overwrite=True to overwrite' % fname
                 )
-    elif isinstance(fname, h5py.File) and fname.mode == 'r':
-        raise UnsupportedOperation('not writable')
+    elif isinstance(fname, h5py.File):
+        if fname.mode == 'r':
+            raise UnsupportedOperation('not writable')
     else:
-        raise ValueError('fname must be str or h5py.File')
+        raise ValueError(f'fname must be str or h5py.File, got {type(fname)}')
     if not isinstance(title, str):
         raise ValueError('title must be a string')
     comp_kw = dict()
@@ -275,12 +276,14 @@ def read_hdf5(fname, title='h5io', slash='ignore'):
     if isinstance(fname, str):
         if not op.isfile(fname):
             raise IOError('file "%s" not found' % fname)
-    elif isinstance(fname, h5py.File) and fname.mode == 'w':
-        raise UnsupportedOperation(
-            'file must not be opened be opened with "w"'
-        )
+    elif isinstance(fname, h5py.File):
+        if fname.mode == 'w':
+            raise UnsupportedOperation(
+                'file must not be opened be opened with "w"'
+            )
+        print(fname.mode)
     else:
-        raise ValueError('fname must be str or h5py.File')
+        raise ValueError(f'fname must be str or h5py.File, got {type(fname)}')
     if not isinstance(title, str):
         raise ValueError('title must be a string')
 
@@ -369,8 +372,8 @@ def _triage_read(node, slash='ignore'):
                     {'datetime': datetime})
     elif type_str.startswith('np_'):
         np_type = type_str.split('_')[1]
-        cast = getattr(np, np_type)
-        data = cast(np.array(node)[0])
+        cast = getattr(np, np_type) if np_type != 'bool' else bool
+        data = np.array(node)[0].astype(cast)
     elif type_str in ('unicode', 'ascii', 'str'):  # 'str' for backward compat
         decoder = 'utf-8' if type_str == 'unicode' else 'ASCII'
         data = str(np.array(node).tobytes().decode(decoder))
