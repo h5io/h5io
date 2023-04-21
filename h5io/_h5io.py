@@ -8,9 +8,12 @@ import json
 import tempfile
 from shutil import rmtree
 from os import path as op
+from pathlib import PurePath
 from io import UnsupportedOperation
 
 import numpy as np
+
+_path_like = (str, PurePath)
 
 special_chars = {'{FWDSLASH}': '/'}
 tab_str = '----'
@@ -91,7 +94,7 @@ def write_hdf5(fname, data, overwrite=False, compression=4,
         lists they can be combined to JSON objects and stored as strings.
     """
     h5py = _check_h5py()
-    if isinstance(fname, str):
+    if isinstance(fname, _path_like):
         mode = 'w'
         if op.isfile(fname):
             if isinstance(overwrite, str):
@@ -273,7 +276,7 @@ def read_hdf5(fname, title='h5io', slash='ignore'):
         The loaded data. Can be of any type supported by ``write_hdf5``.
     """
     h5py = _check_h5py()
-    if isinstance(fname, str):
+    if isinstance(fname, _path_like):
         if not op.isfile(fname):
             raise IOError('file "%s" not found' % fname)
     elif isinstance(fname, h5py.File):

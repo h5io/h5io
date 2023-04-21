@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import datetime
+from pathlib import Path
 from os import path as op
 from io import UnsupportedOperation
 import pytest
@@ -39,9 +40,9 @@ def test_hdf5(tmpdir):
     write_hdf5(test_file, 1)
     assert_equal(read_hdf5(test_file), 1)
     pytest.raises(IOError, write_hdf5, test_file, x)  # file exists
-    write_hdf5(test_file, x, overwrite=True)
+    write_hdf5(Path(test_file), x, overwrite=True)
     pytest.raises(IOError, read_hdf5, test_file + 'FOO')  # not found
-    xx = read_hdf5(test_file)
+    xx = read_hdf5(Path(test_file))
     assert (object_diff(x, xx) == '')  # no assert_equal, ugly output
     list_file_contents(test_file)  # Testing the h5 listing
     pytest.raises(TypeError, list_file_contents, sp)  # Only string works
