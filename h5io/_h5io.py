@@ -57,7 +57,7 @@ def _create_titled_dataset(root, key, title, data, comp_kw=None):
 def _create_pandas_dataset(fname, root, key, title, data):
     h5py = _check_h5py()
     rootpath = '/'.join([root, key])
-    data.to_hdf(fname, rootpath)
+    data.to_hdf(fname, key=rootpath)
     with h5py.File(fname, mode='a') as fid:
         fid[rootpath].attrs['TITLE'] = 'pd_dataframe'
 
