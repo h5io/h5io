@@ -284,7 +284,6 @@ def read_hdf5(fname, title='h5io', slash='ignore'):
             raise UnsupportedOperation(
                 'file must not be opened be opened with "w"'
             )
-        print(fname.mode)
     else:
         raise ValueError(f'fname must be str or h5py.File, got {type(fname)}')
     if not isinstance(title, str):
