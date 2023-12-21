@@ -36,6 +36,7 @@ jobs:
   # PyPI on release
   pypi-publish:
     needs: package
+    if: github.event_name == 'release'
     name: Upload release to PyPI
     runs-on: ubuntu-latest
     environment:
@@ -49,4 +50,3 @@ jobs:
           name: dist
           path: dist
       - uses: pypa/gh-action-pypi-publish@release/v1
-        if: github.event_name == 'release'
