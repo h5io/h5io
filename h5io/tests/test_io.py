@@ -26,6 +26,7 @@ from h5io import list_file_contents, object_diff, read_hdf5, write_hdf5
 
 def test_hdf5(tmpdir):
     """Test HDF5 IO."""
+    pytest.importorskip("tables")
     tempdir = str(tmpdir)
     test_file = op.join(tempdir, "test.hdf5")
     sp = np.eye(3) if sparse is None else sparse.eye(3, 3, format="csc")
