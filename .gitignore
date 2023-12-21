@@ -14,3 +14,4 @@ coverage
 dist/
 .coverage
 tags
+junit-results.xml

@@ -6,10 +6,10 @@
 import datetime
 import json
 import tempfile
-from shutil import rmtree
+from io import UnsupportedOperation
 from os import path as op
 from pathlib import PurePath
-from io import UnsupportedOperation
+from shutil import rmtree
 
 import numpy as np
 
@@ -31,7 +31,7 @@ def _import_sparse():
 # WRITING
 
 def _check_h5py():
-    """Helper to check if h5py is installed"""
+    """Check if h5py is installed."""
     try:
         import h5py
     except ImportError:
@@ -40,14 +40,14 @@ def _check_h5py():
 
 
 def _create_titled_group(root, key, title):
-    """Helper to create a titled group in h5py"""
+    """Create a titled group in h5py."""
     out = root.create_group(key)
     out.attrs['TITLE'] = title
     return out
 
 
 def _create_titled_dataset(root, key, title, data, comp_kw=None):
-    """Helper to create a titled dataset in h5py"""
+    """Create a titled dataset in h5py."""
     comp_kw = {} if comp_kw is None else comp_kw
     out = root.create_dataset(key, data=data, **comp_kw)
     out.attrs['TITLE'] = title
@@ -256,7 +256,7 @@ def _triage_write(key, value, root, comp_kw, where,
 
 
 def read_hdf5(fname, title='h5io', slash='ignore'):
-    """Read python object from HDF5 format using h5py
+    """Read python object from HDF5 format using h5py.
 
     Parameters
     ----------
@@ -349,7 +349,7 @@ def _triage_read(node, slash='ignore'):
                                                    slash=slash)),
                                      shape=_triage_read(node['shape']))
         elif type_str in ['pd_dataframe', 'pd_series']:
-            from pandas import read_hdf, HDFStore
+            from pandas import HDFStore, read_hdf
             rootname = node.name
             filename = node.file.filename
             with HDFStore(filename, 'r') as tmpf:
@@ -393,7 +393,7 @@ def _triage_read(node, slash='ignore'):
 # UTILITIES
 
 def _sort_keys(x):
-    """Sort and return keys of dict"""
+    """Sort and return keys of dict."""
     keys = list(x.keys())  # note: not thread-safe
     idx = np.argsort([str(k) for k in keys])
     keys = [keys[ii] for ii in idx]
@@ -401,7 +401,7 @@ def _sort_keys(x):
 
 
 def object_diff(a, b, pre=''):
-    """Compute all differences between two python variables
+    """Compute all differences between two python variables.
 
     Parameters
     ----------
@@ -479,7 +479,7 @@ def object_diff(a, b, pre=''):
 
 
 class _TempDir(str):
-    """Class for creating and auto-destroying temp dir
+    """Class for creating and auto-destroying temp dir.
 
     This is designed to be used with testing modules. Instances should be
     defined inside test functions. Instances defined at module level can not
@@ -489,6 +489,7 @@ class _TempDir(str):
     cleanup can fail because the rmtree function may be cleaned up before this
     object (an alternative could be using the atexit module instead).
     """
+
     def __new__(self):
         new = str.__new__(self, tempfile.mkdtemp())
         return new
