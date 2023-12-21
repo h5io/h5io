@@ -23,7 +23,7 @@ version = None
 with open(pathlib.Path("h5io") / "_version.py", "r") as fid:
     for line in (line.strip() for line in fid):
         if line.startswith("__version__"):
-            version = line.split("=")[1].strip().strip("'")
+            version = line.split("=")[1].strip().strip('"')
             break
     else:
         raise RuntimeError("Could not determine version")
