@@ -2,13 +2,13 @@
 
 |Travis|_ |Appveyor|_ |Codecov|_
 
-.. |Travis| image:: https://api.travis-ci.org/h5io/h5io.png?branch=master
+.. |Travis| image:: https://api.travis-ci.org/h5io/h5io.png?branch=main
 .. _Travis: https://travis-ci.org/h5io/h5io
 
 .. |Appveyor| image:: https://ci.appveyor.com/api/projects/status/puwaarmllxq5wfvm?svg=true
-.. _Appveyor: https://ci.appveyor.com/project/larsoner/h5io/branch/master
+.. _Appveyor: https://ci.appveyor.com/project/larsoner/h5io/branch/main
 
-.. |Codecov| image:: https://codecov.io/gh/h5io/h5io/branch/master/graph/badge.svg
+.. |Codecov| image:: https://codecov.io/gh/h5io/h5io/branch/main/graph/badge.svg
 .. _Codecov: https://codecov.io/gh/h5io/h5io
 
 `h5io <http://h5io.github.io>`_
@@ -26,7 +26,7 @@ To get the latest code using git, simply type::
     git clone git://github.com/h5io/h5io.git
 
 If you don't have git installed, you can download a zip or tarball
-of the latest code: https://github.com/h5io/h5io/archives/master
+of the latest code: https://github.com/h5io/h5io/archives/main
 
 Install h5io
 ^^^^^^^^^^^^

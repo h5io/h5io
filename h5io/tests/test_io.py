@@ -1,12 +1,14 @@
-# -*- coding: utf-8 -*-
+"""Tests."""
+
 import datetime
-from pathlib import Path
-from os import path as op
 from io import UnsupportedOperation
-import pytest
+from os import path as op
+from pathlib import Path
 
 import numpy as np
+import pytest
 from numpy.testing import assert_equal
+
 try:
     from scipy import sparse
 except ImportError:
@@ -18,8 +20,8 @@ except ImportError:
     DataFrame = Series = None
 
 import h5py
-from h5io import (write_hdf5, read_hdf5,
-                  object_diff, list_file_contents)
+
+from h5io import list_file_contents, object_diff, read_hdf5, write_hdf5
 
 
 def test_hdf5(tmpdir):
@@ -88,6 +90,7 @@ def test_hdf5(tmpdir):
 
 
 def test_h5_file_object(tmpdir):
+    """Test file object support."""
     tempdir = str(tmpdir)
     test_file_path = op.join(tempdir, 'test1.hdf5')
     # test that wrong object type raises error
@@ -142,6 +145,7 @@ def test_hdf5_use_json(tmpdir):
 
 
 def test_path_support(tmpdir):
+    """Test Path support."""
     tempdir = str(tmpdir)
     test_file = op.join(tempdir, 'test.hdf5')
     write_hdf5(test_file, 1, title='first')
@@ -200,7 +204,7 @@ def test_multi_dim_array(tmpdir):
                   title='second', overwrite='update')
 
 
-class XT(datetime.tzinfo):
+class _XT(datetime.tzinfo):
 
     def utcoffset(self, dt):
         return datetime.timedelta(hours=-5)  # Eastern on standard time
@@ -237,7 +241,7 @@ def test_datetime(tmpdir):
     assert dt == dt2
     assert dt2.tzinfo is datetime.timezone.utc
     # Custom
-    dt = dt.replace(tzinfo=XT())
+    dt = dt.replace(tzinfo=_XT())
     write_hdf5(fname, dt, overwrite=True)
     dt2 = read_hdf5(fname)
     assert isinstance(dt2, datetime.datetime)

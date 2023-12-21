@@ -1,0 +1,40 @@
+name: 'Tests'
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.number }}-${{ github.event.ref }}
+  cancel-in-progress: true
+on:  # yamllint disable-line rule:truthy
+  push:
+    branches:
+      - '*'
+  pull_request:
+    branches:
+      - '*'
+
+permissions:
+  contents: read
+
+jobs:
+  pytest:
+    name: '${{ matrix.os }} / ${{ matrix.python }}'
+    continue-on-error: true
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash -e {0}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            python: '3.12'
+          - os: macos-latest
+            python: '3.10'
+          - os: windows-latest
+            python: '3.8'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - run: pip install scipy pandas tables pytest pytest-cov -e .
+      - run: pytest -v h5io
+      - uses: codecov/codecov-action@v3

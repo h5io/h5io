@@ -1,13 +1,16 @@
 name: Build
-on:
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.number }}-${{ github.event.ref }}
+  cancel-in-progress: true
+on:  # yamllint disable-line rule:truthy
   release:
     types: [published]
   push:
     branches:
-      - main
+      - '*'
   pull_request:
     branches:
-      - main
+      - '*'
 
 permissions:
   contents: read
@@ -33,6 +36,7 @@ jobs:
   # PyPI on release
   pypi-publish:
     needs: package
+    if: github.event_name == 'release'
     name: Upload release to PyPI
     runs-on: ubuntu-latest
     environment:
@@ -46,4 +50,3 @@ jobs:
           name: dist
           path: dist
       - uses: pypa/gh-action-pypi-publish@release/v1
-        if: github.event_name == 'release'
