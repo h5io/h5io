@@ -6,6 +6,5 @@ repos:
         name: ruff lint
         args: ["--fix"]
         files: ^h5io/
-      #- id: ruff-format
-      #  name: ruff format
-      #  files: ^h5io/
+      - id: ruff-format
+        name: ruff format

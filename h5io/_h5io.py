@@ -15,8 +15,8 @@ import numpy as np
 
 _path_like = (str, PurePath)
 
-special_chars = {'{FWDSLASH}': '/'}
-tab_str = '----'
+special_chars = {"{FWDSLASH}": "/"}
+tab_str = "----"
 
 
 def _import_sparse():
@@ -30,19 +30,20 @@ def _import_sparse():
 ##############################################################################
 # WRITING
 
+
 def _check_h5py():
     """Check if h5py is installed."""
     try:
         import h5py
     except ImportError:
-        raise ImportError('the h5py module is required to use HDF5 I/O')
+        raise ImportError("the h5py module is required to use HDF5 I/O")
     return h5py
 
 
 def _create_titled_group(root, key, title):
     """Create a titled group in h5py."""
     out = root.create_group(key)
-    out.attrs['TITLE'] = title
+    out.attrs["TITLE"] = title
     return out
 
 
@@ -50,20 +51,27 @@ def _create_titled_dataset(root, key, title, data, comp_kw=None):
     """Create a titled dataset in h5py."""
     comp_kw = {} if comp_kw is None else comp_kw
     out = root.create_dataset(key, data=data, **comp_kw)
-    out.attrs['TITLE'] = title
+    out.attrs["TITLE"] = title
     return out
 
 
 def _create_pandas_dataset(fname, root, key, title, data):
     h5py = _check_h5py()
-    rootpath = '/'.join([root, key])
+    rootpath = "/".join([root, key])
     data.to_hdf(fname, key=rootpath)
-    with h5py.File(fname, mode='a') as fid:
-        fid[rootpath].attrs['TITLE'] = 'pd_dataframe'
+    with h5py.File(fname, mode="a") as fid:
+        fid[rootpath].attrs["TITLE"] = "pd_dataframe"
 
 
-def write_hdf5(fname, data, overwrite=False, compression=4,
-               title='h5io', slash='error', use_json=False):
+def write_hdf5(
+    fname,
+    data,
+    overwrite=False,
+    compression=4,
+    title="h5io",
+    slash="error",
+    use_json=False,
+):
     """Write python object to HDF5 format using h5py.
 
     Parameters
@@ -95,33 +103,42 @@ def write_hdf5(fname, data, overwrite=False, compression=4,
     """
     h5py = _check_h5py()
     if isinstance(fname, _path_like):
-        mode = 'w'
+        mode = "w"
         if op.isfile(fname):
             if isinstance(overwrite, str):
-                if overwrite != 'update':
+                if overwrite != "update":
                     raise ValueError('overwrite must be "update" or a bool')
-                mode = 'a'
+                mode = "a"
             elif not overwrite:
                 raise IOError(
                     'file "%s" exists, use overwrite=True to overwrite' % fname
                 )
     elif isinstance(fname, h5py.File):
-        if fname.mode == 'r':
-            raise UnsupportedOperation('not writable')
+        if fname.mode == "r":
+            raise UnsupportedOperation("not writable")
     else:
-        raise ValueError(f'fname must be str or h5py.File, got {type(fname)}')
+        raise ValueError(f"fname must be str or h5py.File, got {type(fname)}")
     if not isinstance(title, str):
-        raise ValueError('title must be a string')
+        raise ValueError("title must be a string")
     comp_kw = dict()
     if compression > 0:
-        comp_kw = dict(compression='gzip', compression_opts=compression)
+        comp_kw = dict(compression="gzip", compression_opts=compression)
 
     def _write(fid, cleanup_data):
         if title in fid:
             del fid[title]
-        _triage_write(title, data, fid, comp_kw, str(type(data)),
-                      cleanup_data, slash=slash, title=title,
-                      use_json=use_json)
+        _triage_write(
+            title,
+            data,
+            fid,
+            comp_kw,
+            str(type(data)),
+            cleanup_data,
+            slash=slash,
+            title=title,
+            use_json=use_json,
+        )
+
     cleanup_data = []
     if isinstance(fname, h5py.File):
         _write(fname, cleanup_data)
@@ -133,106 +150,174 @@ def write_hdf5(fname, data, overwrite=False, compression=4,
     for data in cleanup_data:
         # In case different extra I/O needs different inputs
         title = list(data.keys())[0]
-        if title in ['pd_dataframe', 'pd_series']:
+        if title in ["pd_dataframe", "pd_series"]:
             rootname, key, value = data[title]
             _create_pandas_dataset(fname, rootname, key, title, value)
 
 
-def _triage_write(key, value, root, comp_kw, where,
-                  cleanup_data, slash='error', title=None,
-                  use_json=False):
+def _triage_write(
+    key,
+    value,
+    root,
+    comp_kw,
+    where,
+    cleanup_data,
+    slash="error",
+    title=None,
+    use_json=False,
+):
     sparse = _import_sparse()
-    if key != title and '/' in key:
-        if slash == 'error':
-            raise ValueError('Found a key with "/", '
-                             'this is not allowed if slash == error')
-        elif slash == 'replace':
+    if key != title and "/" in key:
+        if slash == "error":
+            raise ValueError(
+                'Found a key with "/", ' "this is not allowed if slash == error"
+            )
+        elif slash == "replace":
             # Auto-replace keys with proper values
             for key_spec, val_spec in special_chars.items():
                 key = key.replace(val_spec, key_spec)
         else:
             raise ValueError("slash must be one of ['error', 'replace'")
 
-    if use_json and isinstance(value, (list, dict)) and \
-            _json_compatible(value, slash=slash):
-        value = np.frombuffer(json.dumps(value).encode('utf-8'), np.uint8)
-        _create_titled_dataset(root, key, 'json', value, comp_kw)
+    if (
+        use_json
+        and isinstance(value, (list, dict))
+        and _json_compatible(value, slash=slash)
+    ):
+        value = np.frombuffer(json.dumps(value).encode("utf-8"), np.uint8)
+        _create_titled_dataset(root, key, "json", value, comp_kw)
     elif isinstance(value, dict):
-        sub_root = _create_titled_group(root, key, 'dict')
+        sub_root = _create_titled_group(root, key, "dict")
         for key, sub_value in value.items():
             if not isinstance(key, str):
-                raise TypeError('All dict keys must be strings')
+                raise TypeError("All dict keys must be strings")
             _triage_write(
-                'key_{0}'.format(key), sub_value, sub_root, comp_kw,
-                where + '["%s"]' % key, cleanup_data=cleanup_data, slash=slash)
+                "key_{0}".format(key),
+                sub_value,
+                sub_root,
+                comp_kw,
+                where + '["%s"]' % key,
+                cleanup_data=cleanup_data,
+                slash=slash,
+            )
     elif isinstance(value, (list, tuple)):
-        title = 'list' if isinstance(value, list) else 'tuple'
+        title = "list" if isinstance(value, list) else "tuple"
         sub_root = _create_titled_group(root, key, title)
         for vi, sub_value in enumerate(value):
             _triage_write(
-                'idx_{0}'.format(vi), sub_value, sub_root, comp_kw,
-                where + '[%s]' % vi, cleanup_data=cleanup_data, slash=slash)
+                "idx_{0}".format(vi),
+                sub_value,
+                sub_root,
+                comp_kw,
+                where + "[%s]" % vi,
+                cleanup_data=cleanup_data,
+                slash=slash,
+            )
     elif isinstance(value, type(None)):
-        _create_titled_dataset(root, key, 'None', [False])
+        _create_titled_dataset(root, key, "None", [False])
     elif isinstance(value, (int, float)):
         if isinstance(value, int):
-            title = 'int'
+            title = "int"
         else:  # isinstance(value, float):
-            title = 'float'
+            title = "float"
         _create_titled_dataset(root, key, title, np.atleast_1d(value))
     elif isinstance(value, datetime.datetime):
-        title = 'datetime'
-        value = np.frombuffer(value.isoformat().encode('utf-8'), np.uint8)
+        title = "datetime"
+        value = np.frombuffer(value.isoformat().encode("utf-8"), np.uint8)
         _create_titled_dataset(root, key, title, value)
     elif isinstance(value, datetime.timezone):
-        title = 'timezone'  # the __repr__ is complete
-        value = np.frombuffer(repr(value).encode('utf-8'), np.uint8)
+        title = "timezone"  # the __repr__ is complete
+        value = np.frombuffer(repr(value).encode("utf-8"), np.uint8)
         _create_titled_dataset(root, key, title, value)
     elif isinstance(value, (np.integer, np.floating, np.bool_)):
-        title = 'np_{0}'.format(value.__class__.__name__)
+        title = "np_{0}".format(value.__class__.__name__)
         _create_titled_dataset(root, key, title, np.atleast_1d(value))
     elif isinstance(value, str):
         if isinstance(value, str):  # unicode
-            value = np.frombuffer(value.encode('utf-8'), np.uint8)
-            title = 'unicode'
+            value = np.frombuffer(value.encode("utf-8"), np.uint8)
+            title = "unicode"
         else:
-            value = np.frombuffer(value.encode('ASCII'), np.uint8)
-            title = 'ascii'
+            value = np.frombuffer(value.encode("ASCII"), np.uint8)
+            title = "ascii"
         _create_titled_dataset(root, key, title, value, comp_kw)
     elif isinstance(value, np.ndarray):
-        if not (value.dtype == np.dtype('object') and
-                len(set([sub.dtype for sub in value])) == 1):
-            _create_titled_dataset(root, key, 'ndarray', value)
+        if not (
+            value.dtype == np.dtype("object")
+            and len(set([sub.dtype for sub in value])) == 1
+        ):
+            _create_titled_dataset(root, key, "ndarray", value)
         else:
             ma_index, ma_data = multiarray_dump(value)
-            sub_root = _create_titled_group(root, key, 'multiarray')
-            _create_titled_dataset(sub_root, 'index', 'ndarray', ma_index)
-            _create_titled_dataset(sub_root, 'data', 'ndarray', ma_data)
+            sub_root = _create_titled_group(root, key, "multiarray")
+            _create_titled_dataset(sub_root, "index", "ndarray", ma_index)
+            _create_titled_dataset(sub_root, "data", "ndarray", ma_data)
     elif sparse is not None and isinstance(value, sparse.csc_matrix):
-        sub_root = _create_titled_group(root, key, 'csc_matrix')
-        _triage_write('data', value.data, sub_root, comp_kw,
-                      where + '.csc_matrix_data', cleanup_data=cleanup_data,
-                      slash=slash)
-        _triage_write('indices', value.indices, sub_root, comp_kw,
-                      where + '.csc_matrix_indices', cleanup_data=cleanup_data,
-                      slash=slash)
-        _triage_write('indptr', value.indptr, sub_root, comp_kw,
-                      where + '.csc_matrix_indptr', cleanup_data=cleanup_data,
-                      slash=slash)
+        sub_root = _create_titled_group(root, key, "csc_matrix")
+        _triage_write(
+            "data",
+            value.data,
+            sub_root,
+            comp_kw,
+            where + ".csc_matrix_data",
+            cleanup_data=cleanup_data,
+            slash=slash,
+        )
+        _triage_write(
+            "indices",
+            value.indices,
+            sub_root,
+            comp_kw,
+            where + ".csc_matrix_indices",
+            cleanup_data=cleanup_data,
+            slash=slash,
+        )
+        _triage_write(
+            "indptr",
+            value.indptr,
+            sub_root,
+            comp_kw,
+            where + ".csc_matrix_indptr",
+            cleanup_data=cleanup_data,
+            slash=slash,
+        )
     elif sparse is not None and isinstance(value, sparse.csr_matrix):
-        sub_root = _create_titled_group(root, key, 'csr_matrix')
-        _triage_write('data', value.data, sub_root, comp_kw,
-                      where + '.csr_matrix_data', cleanup_data=cleanup_data,
-                      slash=slash)
-        _triage_write('indices', value.indices, sub_root, comp_kw,
-                      where + '.csr_matrix_indices', cleanup_data=cleanup_data,
-                      slash=slash)
-        _triage_write('indptr', value.indptr, sub_root, comp_kw,
-                      where + '.csr_matrix_indptr', cleanup_data=cleanup_data,
-                      slash=slash)
-        _triage_write('shape', value.shape, sub_root, comp_kw,
-                      where + '.csr_matrix_shape', cleanup_data=cleanup_data,
-                      slash=slash)
+        sub_root = _create_titled_group(root, key, "csr_matrix")
+        _triage_write(
+            "data",
+            value.data,
+            sub_root,
+            comp_kw,
+            where + ".csr_matrix_data",
+            cleanup_data=cleanup_data,
+            slash=slash,
+        )
+        _triage_write(
+            "indices",
+            value.indices,
+            sub_root,
+            comp_kw,
+            where + ".csr_matrix_indices",
+            cleanup_data=cleanup_data,
+            slash=slash,
+        )
+        _triage_write(
+            "indptr",
+            value.indptr,
+            sub_root,
+            comp_kw,
+            where + ".csr_matrix_indptr",
+            cleanup_data=cleanup_data,
+            slash=slash,
+        )
+        _triage_write(
+            "shape",
+            value.shape,
+            sub_root,
+            comp_kw,
+            where + ".csr_matrix_shape",
+            cleanup_data=cleanup_data,
+            slash=slash,
+        )
     else:
         try:
             from pandas import DataFrame, Series
@@ -241,21 +326,22 @@ def _triage_write(key, value, root, comp_kw, where,
         else:
             if isinstance(value, (DataFrame, Series)):
                 if isinstance(value, DataFrame):
-                    title = 'pd_dataframe'
+                    title = "pd_dataframe"
                 else:
-                    title = 'pd_series'
+                    title = "pd_series"
                 rootname = root.name
                 cleanup_data.append({title: (rootname, key, value)})
                 return
 
-        err_str = 'unsupported type %s (in %s)' % (type(value), where)
+        err_str = "unsupported type %s (in %s)" % (type(value), where)
         raise TypeError(err_str)
+
 
 ##############################################################################
 # READING
 
 
-def read_hdf5(fname, title='h5io', slash='ignore'):
+def read_hdf5(fname, title="h5io", slash="ignore"):
     """Read python object from HDF5 format using h5py.
 
     Parameters
@@ -280,117 +366,122 @@ def read_hdf5(fname, title='h5io', slash='ignore'):
         if not op.isfile(fname):
             raise IOError('file "%s" not found' % fname)
     elif isinstance(fname, h5py.File):
-        if fname.mode == 'w':
-            raise UnsupportedOperation(
-                'file must not be opened be opened with "w"'
-            )
+        if fname.mode == "w":
+            raise UnsupportedOperation('file must not be opened be opened with "w"')
     else:
-        raise ValueError(f'fname must be str or h5py.File, got {type(fname)}')
+        raise ValueError(f"fname must be str or h5py.File, got {type(fname)}")
     if not isinstance(title, str):
-        raise ValueError('title must be a string')
+        raise ValueError("title must be a string")
 
     def _read(fid):
         if title not in fid:
             raise ValueError('no "%s" data found' % title)
         if isinstance(fid[title], h5py.Group):
-            if 'TITLE' not in fid[title].attrs:
+            if "TITLE" not in fid[title].attrs:
                 raise ValueError('no "%s" data found' % title)
         return _triage_read(fid[title], slash=slash)
+
     if isinstance(fname, h5py.File):
         return _read(fname)
     else:
-        with h5py.File(fname, mode='r') as fid:
+        with h5py.File(fname, mode="r") as fid:
             return _read(fid)
 
 
-def _triage_read(node, slash='ignore'):
-    if slash not in ['ignore', 'replace']:
+def _triage_read(node, slash="ignore"):
+    if slash not in ["ignore", "replace"]:
         raise ValueError("slash must be one of 'replace', 'ignore'")
     h5py = _check_h5py()
     sparse = _import_sparse()
-    type_str = node.attrs['TITLE']
+    type_str = node.attrs["TITLE"]
     if isinstance(type_str, bytes):
         type_str = type_str.decode()
     if isinstance(node, h5py.Group):
-        if type_str == 'dict':
+        if type_str == "dict":
             data = dict()
             for key, subnode in node.items():
-                if slash == 'replace':
+                if slash == "replace":
                     for key_spec, val_spec in special_chars.items():
                         key = key.replace(key_spec, val_spec)
                 data[key[4:]] = _triage_read(subnode, slash=slash)
-        elif type_str in ['list', 'tuple']:
+        elif type_str in ["list", "tuple"]:
             data = list()
             ii = 0
             while True:
-                subnode = node.get('idx_{0}'.format(ii), None)
+                subnode = node.get("idx_{0}".format(ii), None)
                 if subnode is None:
                     break
                 data.append(_triage_read(subnode, slash=slash))
                 ii += 1
             assert len(data) == ii
-            data = tuple(data) if type_str == 'tuple' else data
+            data = tuple(data) if type_str == "tuple" else data
             return data
-        elif type_str == 'csc_matrix':
+        elif type_str == "csc_matrix":
             if sparse is None:
-                raise RuntimeError('scipy must be installed to read this data')
-            data = sparse.csc_matrix((_triage_read(node['data'], slash=slash),
-                                      _triage_read(node['indices'],
-                                                   slash=slash),
-                                      _triage_read(node['indptr'],
-                                                   slash=slash)))
-        elif type_str == 'csr_matrix':
+                raise RuntimeError("scipy must be installed to read this data")
+            data = sparse.csc_matrix(
+                (
+                    _triage_read(node["data"], slash=slash),
+                    _triage_read(node["indices"], slash=slash),
+                    _triage_read(node["indptr"], slash=slash),
+                )
+            )
+        elif type_str == "csr_matrix":
             if sparse is None:
-                raise RuntimeError('scipy must be installed to read this data')
-            data = sparse.csr_matrix((_triage_read(node['data'], slash=slash),
-                                      _triage_read(node['indices'],
-                                                   slash=slash),
-                                      _triage_read(node['indptr'],
-                                                   slash=slash)),
-                                     shape=_triage_read(node['shape']))
-        elif type_str in ['pd_dataframe', 'pd_series']:
+                raise RuntimeError("scipy must be installed to read this data")
+            data = sparse.csr_matrix(
+                (
+                    _triage_read(node["data"], slash=slash),
+                    _triage_read(node["indices"], slash=slash),
+                    _triage_read(node["indptr"], slash=slash),
+                ),
+                shape=_triage_read(node["shape"]),
+            )
+        elif type_str in ["pd_dataframe", "pd_series"]:
             from pandas import HDFStore, read_hdf
+
             rootname = node.name
             filename = node.file.filename
-            with HDFStore(filename, 'r') as tmpf:
+            with HDFStore(filename, "r") as tmpf:
                 data = read_hdf(tmpf, rootname)
-        elif type_str == 'multiarray':
-            ma_index = _triage_read(node.get('index', None), slash=slash)
-            ma_data = _triage_read(node.get('data', None), slash=slash)
+        elif type_str == "multiarray":
+            ma_index = _triage_read(node.get("index", None), slash=slash)
+            ma_data = _triage_read(node.get("data", None), slash=slash)
             data = multiarray_load(ma_index, ma_data)
         else:
-            raise NotImplementedError('Unknown group type: {0}'
-                                      ''.format(type_str))
-    elif type_str == 'ndarray':
+            raise NotImplementedError("Unknown group type: {0}" "".format(type_str))
+    elif type_str == "ndarray":
         data = np.array(node)
-    elif type_str in ('int', 'float'):
-        cast = int if type_str == 'int' else float
+    elif type_str in ("int", "float"):
+        cast = int if type_str == "int" else float
         data = cast(np.array(node)[0])
-    elif type_str == 'datetime':
-        data = str(np.array(node).tobytes().decode('utf-8'))
+    elif type_str == "datetime":
+        data = str(np.array(node).tobytes().decode("utf-8"))
         data = datetime.datetime.fromisoformat(data)
-    elif type_str == 'timezone':
-        data = eval(str(np.array(node).tobytes().decode('utf-8')),
-                    {'datetime': datetime})
-    elif type_str.startswith('np_'):
-        np_type = type_str.split('_')[1]
-        cast = getattr(np, np_type) if np_type != 'bool' else bool
+    elif type_str == "timezone":
+        data = eval(
+            str(np.array(node).tobytes().decode("utf-8")), {"datetime": datetime}
+        )
+    elif type_str.startswith("np_"):
+        np_type = type_str.split("_")[1]
+        cast = getattr(np, np_type) if np_type != "bool" else bool
         data = np.array(node)[0].astype(cast)
-    elif type_str in ('unicode', 'ascii', 'str'):  # 'str' for backward compat
-        decoder = 'utf-8' if type_str == 'unicode' else 'ASCII'
+    elif type_str in ("unicode", "ascii", "str"):  # 'str' for backward compat
+        decoder = "utf-8" if type_str == "unicode" else "ASCII"
         data = str(np.array(node).tobytes().decode(decoder))
-    elif type_str == 'json':
-        node_unicode = str(np.array(node).tobytes().decode('utf-8'))
+    elif type_str == "json":
+        node_unicode = str(np.array(node).tobytes().decode("utf-8"))
         data = json.loads(node_unicode)
-    elif type_str == 'None':
+    elif type_str == "None":
         data = None
     else:
-        raise TypeError('Unknown node type: {0}'.format(type_str))
+        raise TypeError("Unknown node type: {0}".format(type_str))
     return data
 
 
 # ############################################################################
 # UTILITIES
+
 
 def _sort_keys(x):
     """Sort and return keys of dict."""
@@ -400,7 +491,7 @@ def _sort_keys(x):
     return keys
 
 
-def object_diff(a, b, pre=''):
+def object_diff(a, b, pre=""):
     """Compute all differences between two python variables.
 
     Parameters
@@ -424,57 +515,61 @@ def object_diff(a, b, pre=''):
     except ImportError:
         DataFrame = Series = type(None)
 
-    out = ''
+    out = ""
     if type(a) != type(b):
-        out += pre + ' type mismatch (%s, %s)\n' % (type(a), type(b))
+        out += pre + " type mismatch (%s, %s)\n" % (type(a), type(b))
     elif isinstance(a, dict):
         k1s = _sort_keys(a)
         k2s = _sort_keys(b)
         m1 = set(k2s) - set(k1s)
         if len(m1):
-            out += pre + ' x1 missing keys %s\n' % (m1)
+            out += pre + " x1 missing keys %s\n" % (m1)
         for key in k1s:
             if key not in k2s:
-                out += pre + ' x2 missing key %s\n' % key
+                out += pre + " x2 missing key %s\n" % key
             else:
-                out += object_diff(a[key], b[key], pre + 'd1[%s]' % repr(key))
+                out += object_diff(a[key], b[key], pre + "d1[%s]" % repr(key))
     elif isinstance(a, (list, tuple)):
         if len(a) != len(b):
-            out += pre + ' length mismatch (%s, %s)\n' % (len(a), len(b))
+            out += pre + " length mismatch (%s, %s)\n" % (len(a), len(b))
         else:
             for xx1, xx2 in zip(a, b):
-                out += object_diff(xx1, xx2, pre='')
+                out += object_diff(xx1, xx2, pre="")
     elif isinstance(a, (str, int, float, bytes)):
         if a != b:
-            out += pre + ' value mismatch (%s, %s)\n' % (a, b)
+            out += pre + " value mismatch (%s, %s)\n" % (a, b)
     elif a is None:
         pass  # b must be None due to our type checking
     elif isinstance(a, np.ndarray):
         if not np.array_equal(a, b):
-            out += pre + ' array mismatch\n'
+            out += pre + " array mismatch\n"
     elif sparse is not None and sparse.isspmatrix(a):
         # sparsity and sparse type of b vs a already checked above by type()
         if b.shape != a.shape:
-            out += pre + (' sparse matrix a and b shape mismatch'
-                          '(%s vs %s)' % (a.shape, b.shape))
+            out += pre + (
+                " sparse matrix a and b shape mismatch"
+                "(%s vs %s)" % (a.shape, b.shape)
+            )
         else:
             c = a - b
             c.eliminate_zeros()
             if c.nnz > 0:
-                out += pre + (' sparse matrix a and b differ on %s '
-                              'elements' % c.nnz)
+                out += pre + (" sparse matrix a and b differ on %s " "elements" % c.nnz)
     elif isinstance(a, (DataFrame, Series)):
         if b.shape != a.shape:
-            out += pre + (' pandas values a and b shape mismatch'
-                          '(%s vs %s)' % (a.shape, b.shape))
+            out += pre + (
+                " pandas values a and b shape mismatch"
+                "(%s vs %s)" % (a.shape, b.shape)
+            )
         else:
             c = a.values - b.values
             nzeros = np.sum(c != 0)
             if nzeros > 0:
-                out += pre + (' pandas values a and b differ on %s '
-                              'elements' % nzeros)
+                out += pre + (
+                    " pandas values a and b differ on %s " "elements" % nzeros
+                )
     else:
-        raise RuntimeError(pre + ': unsupported type %s (%s)' % (type(a), a))
+        raise RuntimeError(pre + ": unsupported type %s (%s)" % (type(a), a))
     return out
 
 
@@ -502,39 +597,43 @@ class _TempDir(str):
 
 
 def _list_file_contents(h5file):
-    if 'h5io' not in h5file.keys():
-        raise ValueError('h5file must contain h5io data')
+    if "h5io" not in h5file.keys():
+        raise ValueError("h5file must contain h5io data")
 
     # Set up useful variables for later
-    h5file = h5file['h5io']
-    root_title = h5file.attrs['TITLE']
-    n_space = np.max([(len(key), len(val.attrs['TITLE']))
-                      for key, val in h5file.items()]) + 2
+    h5file = h5file["h5io"]
+    root_title = h5file.attrs["TITLE"]
+    n_space = (
+        np.max([(len(key), len(val.attrs["TITLE"])) for key, val in h5file.items()]) + 2
+    )
 
     # Create print strings
-    strs = ['Root type: %s | Items: %s\n' % (root_title, len(h5file))]
+    strs = ["Root type: %s | Items: %s\n" % (root_title, len(h5file))]
     for key, data in h5file.items():
-        type_str = data.attrs['TITLE']
-        str_format = '%%-%ss' % n_space
-        if type_str == 'ndarray':
-            desc = 'Shape: %s'
+        type_str = data.attrs["TITLE"]
+        str_format = "%%-%ss" % n_space
+        if type_str == "ndarray":
+            desc = "Shape: %s"
             desc_val = data.shape
-        elif type_str in ['pd_dataframe', 'pd_series']:
-            desc = 'Shape: %s'
-            desc_val = data['values'].shape
-        elif type_str in ('unicode', 'ascii', 'str'):
-            desc = 'Text: %s'
-            decoder = 'utf-8' if type_str == 'unicode' else 'ASCII'
+        elif type_str in ["pd_dataframe", "pd_series"]:
+            desc = "Shape: %s"
+            desc_val = data["values"].shape
+        elif type_str in ("unicode", "ascii", "str"):
+            desc = "Text: %s"
+            decoder = "utf-8" if type_str == "unicode" else "ASCII"
             data = str(np.array(data).tobytes().decode(decoder))
-            desc_val = data[:10] + '...' if len(data) > 10 else data
+            desc_val = data[:10] + "..." if len(data) > 10 else data
         else:
-            desc = 'Items: %s'
+            desc = "Items: %s"
             desc_val = len(data)
-        this_str = ('%%s Key: %s | Type: %s | ' + desc) % (
-            str_format, str_format, str_format)
+        this_str = ("%%s Key: %s | Type: %s | " + desc) % (
+            str_format,
+            str_format,
+            str_format,
+        )
         this_str = this_str % (tab_str, key, type_str, desc_val)
         strs.append(this_str)
-    out_str = '\n'.join(strs)
+    out_str = "\n".join(strs)
     print(out_str)
 
 
@@ -549,9 +648,9 @@ def list_file_contents(h5file):
         The path to an h5io hdf5 file.
     """
     h5py = _check_h5py()
-    err = 'h5file must be an h5py File object, not {0}'
+    err = "h5file must be an h5py File object, not {0}"
     if isinstance(h5file, str):
-        with h5py.File(h5file, 'r') as f:
+        with h5py.File(h5file, "r") as f:
             _list_file_contents(f)
     else:
         if not isinstance(h5file, h5py.File):
@@ -559,7 +658,7 @@ def list_file_contents(h5file):
         _list_file_contents(h5file)
 
 
-def _json_compatible(obj, slash='error'):
+def _json_compatible(obj, slash="error"):
     if isinstance(obj, (str, int, float, bool, type(None))):
         return True
     elif isinstance(obj, list):
@@ -571,15 +670,16 @@ def _json_compatible(obj, slash='error'):
         return False
 
 
-def _check_keys_in_dict(obj, slash='error'):
+def _check_keys_in_dict(obj, slash="error"):
     repl = list()
     for key in obj.keys():
-        if '/' in key:
+        if "/" in key:
             key_prev = key
-            if slash == 'error':
-                raise ValueError('Found a key with "/", '
-                                 'this is not allowed if slash == error')
-            elif slash == 'replace':
+            if slash == "error":
+                raise ValueError(
+                    'Found a key with "/", ' "this is not allowed if slash == error"
+                )
+            elif slash == "replace":
                 # Auto-replace keys with proper values
                 for key_spec, val_spec in special_chars.items():
                     key = key.replace(val_spec, key_spec)
@@ -593,9 +693,11 @@ def _check_keys_in_dict(obj, slash='error'):
 ##############################################################################
 # Arrays with mixed dimensions
 def _validate_object_array(array):
-    if not (array.dtype == np.dtype('object') and
-            len(set([sub.dtype for sub in array])) == 1):
-        raise TypeError('unsupported array type')
+    if not (
+        array.dtype == np.dtype("object")
+        and len(set([sub.dtype for sub in array])) == 1
+    ):
+        raise TypeError("unsupported array type")
 
 
 def _shape_list(array):
@@ -604,7 +706,7 @@ def _shape_list(array):
 
 def _validate_sub_shapes(shape_lst):
     if not all([shape_lst[0][1:] == t[1:] for t in shape_lst]):
-        raise ValueError('shape does not match!')
+        raise ValueError("shape does not match!")
 
 
 def _array_index(shape_lst):
