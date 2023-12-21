@@ -60,4 +60,6 @@ if __name__ == "__main__":
           platforms='any',
           packages=['h5io', 'h5io.tests'],
           package_data={},
-          scripts=[])
+          scripts=[],
+          long_description_content_type='text/x-rst',
+    )
