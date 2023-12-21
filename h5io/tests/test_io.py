@@ -2,7 +2,6 @@
 
 import datetime
 from io import UnsupportedOperation
-from os import path as op
 from pathlib import Path
 
 import numpy as np
@@ -24,11 +23,10 @@ import h5py
 from h5io import list_file_contents, object_diff, read_hdf5, write_hdf5
 
 
-def test_hdf5(tmpdir):
+def test_hdf5(tmp_path):
     """Test HDF5 IO."""
     pytest.importorskip("tables")
-    tempdir = str(tmpdir)
-    test_file = op.join(tempdir, "test.hdf5")
+    test_file = str(tmp_path / "test.hdf5")
     sp = np.eye(3) if sparse is None else sparse.eye(3, 3, format="csc")
     sp_csr = np.eye(3) if sparse is None else sparse.eye(3, 3, format="csr")
     df = np.eye(3) if isinstance(DataFrame, type(None)) else DataFrame(np.eye(3))
@@ -93,10 +91,9 @@ def test_hdf5(tmpdir):
     assert_equal(read_hdf5(test_file, title="second"), 5)
 
 
-def test_h5_file_object(tmpdir):
+def test_h5_file_object(tmp_path):
     """Test file object support."""
-    tempdir = str(tmpdir)
-    test_file_path = op.join(tempdir, "test1.hdf5")
+    test_file_path = tmp_path / "test1.hdf5"
     # test that wrong object type raises error
     pytest.raises(ValueError, write_hdf5, fname=33, data=1)
     # test that reading/writing are unaffected
@@ -117,10 +114,9 @@ def test_h5_file_object(tmpdir):
     #         read_hdf5(test_file_obj)
 
 
-def test_hdf5_use_json(tmpdir):
+def test_hdf5_use_json(tmp_path):
     """Test HDF5 IO."""
-    tempdir = str(tmpdir)
-    test_file = op.join(tempdir, "test.hdf5")
+    test_file = tmp_path / "test.hdf5"
     splash_dict = {"first/second": {"one/more": "value"}}
     pytest.raises(
         ValueError,
@@ -162,10 +158,9 @@ def test_hdf5_use_json(tmpdir):
     )
 
 
-def test_path_support(tmpdir):
+def test_path_support(tmp_path):
     """Test Path support."""
-    tempdir = str(tmpdir)
-    test_file = op.join(tempdir, "test.hdf5")
+    test_file = tmp_path / "test.hdf5"
     write_hdf5(test_file, 1, title="first")
     write_hdf5(test_file, 2, title="second/third", overwrite="update")
     pytest.raises(ValueError, read_hdf5, test_file, title="second")
@@ -198,9 +193,9 @@ def test_object_diff():
     pytest.raises(RuntimeError, object_diff, object, object)
 
 
-def test_numpy_values(tmpdir):
+def test_numpy_values(tmp_path):
     """Test NumPy values."""
-    test_file = op.join(str(tmpdir), "test.hdf5")
+    test_file = tmp_path / "test.hdf5"
     for cast in [
         np.int8,
         np.int16,
@@ -216,11 +211,11 @@ def test_numpy_values(tmpdir):
         assert_equal(read_hdf5(test_file, "first"), value)
 
 
-def test_multi_dim_array(tmpdir):
+def test_multi_dim_array(tmp_path):
     """Test multidimensional arrays."""
     rng = np.random.RandomState(0)
     traj = np.array([rng.randn(2, 1), rng.randn(3, 1)], dtype=object)
-    test_file = op.join(str(tmpdir), "test.hdf5")
+    test_file = tmp_path / "test.hdf5"
     write_hdf5(test_file, traj, title="first", overwrite="update")
     for traj_read, traj_sub in zip(read_hdf5(test_file, "first"), traj):
         assert np.equal(traj_read, traj_sub).all()
@@ -246,9 +241,9 @@ class _XT(datetime.tzinfo):
         return None
 
 
-def test_datetime(tmpdir):
+def test_datetime(tmp_path):
     """Test datetime.datetime support."""
-    fname = op.join(str(tmpdir), "test.hdf5")
+    fname = tmp_path / "test.hdf5"
     # Naive
     y, m, d, h, m, s, mu = range(1, 8)
     dt = datetime.datetime(y, m, d, h, m, s, mu)
@@ -284,9 +279,9 @@ def test_datetime(tmpdir):
 
 
 @pytest.mark.parametrize("name", (None, "foo"))
-def test_timezone(name, tmpdir):
+def test_timezone(name, tmp_path):
     """Test datetime.timezone support."""
-    fname = op.join(str(tmpdir), "test.hdf5")
+    fname = tmp_path / "test.hdf5"
     kwargs = dict()
     if name is not None:
         kwargs["name"] = name
