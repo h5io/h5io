@@ -1,9 +1,9 @@
 """Tests."""
 
 import datetime
+import sys
 from io import UnsupportedOperation
 from pathlib import Path
-import sys
 
 import numpy as np
 import pytest
