@@ -6,12 +6,12 @@
 import datetime
 import importlib
 import json
+import sys
 import tempfile
 from io import UnsupportedOperation
 from os import path as op
 from pathlib import PurePath
 from shutil import rmtree
-import sys
 
 import numpy as np
 
