@@ -3,6 +3,7 @@
 import datetime
 from io import UnsupportedOperation
 from pathlib import Path
+import sys
 
 import numpy as np
 import pytest
@@ -294,6 +295,7 @@ def test_timezone(name, tmp_path):
         assert y.tzname(None) == name
 
 
+@pytest.mark.skipif(sys.version_info < (3, 11), reason="requires python3.11 or higher")
 def test_state_with_numpy_poly1d(tmp_path):
     """
     The np.poly1d() object has an instance __dict__
@@ -338,6 +340,7 @@ def test_state_with_numpy_poly1d(tmp_path):
     assert polyfit_obj == polyfit_obj_reload
 
 
+@pytest.mark.skipif(sys.version_info < (3, 11), reason="requires python3.11 or higher")
 def test_state_with_pathlib(tmp_path):
     """
     The Path object has __slots__ and no instance __dict__
@@ -382,6 +385,7 @@ def test_state_with_pathlib(tmp_path):
     assert path_obj == path_obj_reload
 
 
+@pytest.mark.skipif(sys.version_info < (3, 11), reason="requires python3.11 or higher")
 def test_state_with_dynamic_class(tmp_path):
     test_file = tmp_path / "test.hdf5"
 
