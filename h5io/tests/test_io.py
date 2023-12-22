@@ -299,7 +299,7 @@ def test_state_with_numpy_poly1d(tmp_path):
     The np.poly1d() object has an instance __dict__
     """
     test_file = tmp_path / "test.hdf5"
-    polyfit_obj = np.poly1d(np.polyfit([1,2], [1,2], 1))
+    polyfit_obj = np.poly1d(np.polyfit([1, 2], [1, 2], 1))
     pytest.raises(
         TypeError,
         write_hdf5,
@@ -384,6 +384,7 @@ def test_state_with_pathlib(tmp_path):
 
 def test_state_with_dynamic_class(tmp_path):
     test_file = tmp_path / "test.hdf5"
+
     class MyClass:
         a = 1
 

@@ -361,7 +361,11 @@ def _triage_write(
                 # self.__dict__, and a dictionary mapping slot names to slot
                 # values. Only slots that have a value are included in the latter.
                 state_dict = state[0]
-            elif isinstance(state, tuple) and state[0] is None and isinstance(state[1], dict):
+            elif (
+                isinstance(state, tuple)
+                and state[0] is None
+                and isinstance(state[1], dict)
+            ):
                 # For a class that has __slots__ and no instance __dict__, the
                 # default state is a tuple whose first item is None and whose
                 # second item is a dictionary mapping slot names to slot values
@@ -503,7 +507,9 @@ def _triage_read(node, slash="ignore"):
         else:
             return _setstate(
                 obj_class=_import_class(class_type=type_str),
-                state_dict={n: _triage_read(node[n], slash="ignore") for n in list(node.keys())}
+                state_dict={
+                    n: _triage_read(node[n], slash="ignore") for n in list(node.keys())
+                },
             )
     elif type_str == "ndarray":
         data = np.array(node)
@@ -829,5 +835,7 @@ def _setstate(obj_class, state_dict):
         for k, v in state_dict.items():
             setattr(obj, k, v)
     elif len(state_dict) != 0:
-        raise TypeError("Unexpected state signature, h5io is unable to restore the object.")
+        raise TypeError(
+            "Unexpected state signature, h5io is unable to restore the object."
+        )
     return obj
