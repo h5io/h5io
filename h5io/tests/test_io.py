@@ -297,9 +297,7 @@ def test_timezone(name, tmp_path):
 
 @pytest.mark.skipif(sys.version_info < (3, 11), reason="requires python3.11 or higher")
 def test_state_with_numpy_poly1d(tmp_path):
-    """
-    The np.poly1d() object has an instance __dict__
-    """
+    """The np.poly1d() object has an instance __dict__."""
     test_file = tmp_path / "test.hdf5"
     polyfit_obj = np.poly1d(np.polyfit([1, 2], [1, 2], 1))
     pytest.raises(
@@ -342,9 +340,7 @@ def test_state_with_numpy_poly1d(tmp_path):
 
 @pytest.mark.skipif(sys.version_info < (3, 11), reason="requires python3.11 or higher")
 def test_state_with_pathlib(tmp_path):
-    """
-    The Path object has __slots__ and no instance __dict__
-    """
+    """The Path object has __slots__ and no instance __dict__."""
     test_file = tmp_path / "test.hdf5"
     path_obj = Path(tmp_path)
     pytest.raises(
@@ -387,6 +383,7 @@ def test_state_with_pathlib(tmp_path):
 
 @pytest.mark.skipif(sys.version_info < (3, 11), reason="requires python3.11 or higher")
 def test_state_with_dynamic_class(tmp_path):
+    """A dynamically defined class cannot be stored in HDF5."""
     test_file = tmp_path / "test.hdf5"
 
     class MyClass:
@@ -420,9 +417,7 @@ def test_state_with_dynamic_class(tmp_path):
 
 @pytest.mark.skipif(sys.version_info >= (3, 11), reason="only python3.11 or lower")
 def test_state_python_version_error(tmp_path):
-    """
-    Raise RuntimeError when use_state is used with an invalid python version
-    """
+    """Raise RuntimeError when use_state is used with an invalid python version."""
     test_file = tmp_path / "test.hdf5"
     path_obj = Path(tmp_path)
     pytest.raises(
