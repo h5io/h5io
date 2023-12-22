@@ -416,3 +416,21 @@ def test_state_with_dynamic_class(tmp_path):
         title="myobj",
         slash="ignore",
     )
+
+
+@pytest.mark.skipif(sys.version_info >= (3, 11), reason="only python3.11 or lower")
+def test_state_python_version_error(tmp_path):
+    """
+    Raise RuntimeError when use_state is used with an invalid python version
+    """
+    test_file = tmp_path / "test.hdf5"
+    path_obj = Path(tmp_path)
+    pytest.raises(
+        RuntimeError,
+        write_hdf5,
+        test_file,
+        path_obj,
+        title="pathobj",
+        overwrite="update",
+        use_state=True,
+    )

@@ -11,6 +11,7 @@ from io import UnsupportedOperation
 from os import path as op
 from pathlib import PurePath
 from shutil import rmtree
+import sys
 
 import numpy as np
 
@@ -104,10 +105,16 @@ def write_hdf5(
         lists they can be combined to JSON objects and stored as strings.
     use_state: bool
         To store objects of unsupported types the __getstate__() method is used
-        to retrive a dictionary which defines the state of the object and store
-        the content of this dictionary in the HDF5 file.
+        to retrieve a dictionary which defines the state of the object and store
+        the content of this dictionary in the HDF5 file. (requires python >=3.11)
     """
     h5py = _check_h5py()
+    if use_state and sys.version_info < (3, 11):
+        raise RuntimeError(
+            "The use_state parameter requires Python >= 3.11, as Python 3.11 "
+            "added the default implementation of the __getstate__() method in "
+            "the object class."
+        )
     if isinstance(fname, _path_like):
         mode = "w"
         if op.isfile(fname):
@@ -347,6 +354,8 @@ def _triage_write(
             sub_root = _create_titled_group(root, key, class_type)
 
             # Based on https://docs.python.org/3/library/pickle.html#object.__getstate__
+            # Requires python >= 3.11 as python 3.11 added the default implementation
+            # of the __getstate__() method in the object class.
             if state is None:
                 # For a class that has no instance __dict__ and no __slots__,
                 # the default state is None.
@@ -504,13 +513,18 @@ def _triage_read(node, slash="ignore"):
             ma_index = _triage_read(node.get("index", None), slash=slash)
             ma_data = _triage_read(node.get("data", None), slash=slash)
             data = multiarray_load(ma_index, ma_data)
-        else:
+        elif sys.version_info >= (3, 11):
+            # Requires python >= 3.11 as python 3.11 added the default implementation
+            # of the __getstate__() method in the object class.
+            # Based on https://docs.python.org/3/library/pickle.html#object.__getstate__
             return _setstate(
                 obj_class=_import_class(class_type=type_str),
                 state_dict={
                     n: _triage_read(node[n], slash="ignore") for n in list(node.keys())
                 },
             )
+        else:
+            raise NotImplementedError("Unknown group type: {0}" "".format(type_str))
     elif type_str == "ndarray":
         data = np.array(node)
     elif type_str in ("int", "float"):
