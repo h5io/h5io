@@ -349,7 +349,7 @@ def _triage_write(
                 return
 
         if use_state:
-            class_type = str(type(value)).split("'")[1]
+            class_type = value.__class__.__module__ + "." + value.__class__.__name__
             state = value.__getstate__()
             sub_root = _create_titled_group(root, key, class_type)
 
