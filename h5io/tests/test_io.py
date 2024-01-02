@@ -407,7 +407,7 @@ def test_state_with_dynamic_class(tmp_path):
         use_state=True,
     )
     pytest.raises(
-        ModuleNotFoundError,
+        AttributeError,
         read_hdf5,
         fname=test_file,
         title="myobj",
