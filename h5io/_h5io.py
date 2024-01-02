@@ -4,7 +4,9 @@
 # License: BSD (3-clause)
 
 import datetime
+import importlib
 import json
+import sys
 import tempfile
 from io import UnsupportedOperation
 from os import path as op
@@ -71,6 +73,7 @@ def write_hdf5(
     title="h5io",
     slash="error",
     use_json=False,
+    use_state=False,
 ):
     """Write python object to HDF5 format using h5py.
 
@@ -100,8 +103,18 @@ def write_hdf5(
     use_json : bool
         To accelerate the read and write performance of small dictionaries and
         lists they can be combined to JSON objects and stored as strings.
+    use_state: bool
+        To store objects of unsupported types the __getstate__() method is used
+        to retrieve a dictionary which defines the state of the object and store
+        the content of this dictionary in the HDF5 file. (requires python >=3.11)
     """
     h5py = _check_h5py()
+    if use_state and sys.version_info < (3, 11):
+        raise RuntimeError(
+            "The use_state parameter requires Python >= 3.11, as Python 3.11 "
+            "added the default implementation of the __getstate__() method in "
+            "the object class."
+        )
     if isinstance(fname, _path_like):
         mode = "w"
         if op.isfile(fname):
@@ -137,6 +150,7 @@ def write_hdf5(
             slash=slash,
             title=title,
             use_json=use_json,
+            use_state=use_state,
         )
 
     cleanup_data = []
@@ -165,6 +179,7 @@ def _triage_write(
     slash="error",
     title=None,
     use_json=False,
+    use_state=False,
 ):
     sparse = _import_sparse()
     if key != title and "/" in key:
@@ -333,6 +348,56 @@ def _triage_write(
                 cleanup_data.append({title: (rootname, key, value)})
                 return
 
+        if use_state:
+            class_type = value.__class__.__module__ + "." + value.__class__.__name__
+            state = value.__getstate__()
+            sub_root = _create_titled_group(root, key, class_type)
+
+            # Based on https://docs.python.org/3/library/pickle.html#object.__getstate__
+            # Requires python >= 3.11 as python 3.11 added the default implementation
+            # of the __getstate__() method in the object class.
+            if state is None:
+                # For a class that has no instance __dict__ and no __slots__,
+                # the default state is None.
+                return
+            elif isinstance(state, dict):
+                # For a class that has an instance __dict__ and no __slots__,
+                # the default state is self.__dict__.
+                state_dict = state
+            elif isinstance(state, tuple) and isinstance(state[0], dict):
+                # For a class that has an instance __dict__ and __slots__, the
+                # default state is a tuple consisting of two dictionaries:
+                # self.__dict__, and a dictionary mapping slot names to slot
+                # values. Only slots that have a value are included in the latter.
+                state_dict = state[0]
+            elif (
+                isinstance(state, tuple)
+                and state[0] is None
+                and isinstance(state[1], dict)
+            ):
+                # For a class that has __slots__ and no instance __dict__, the
+                # default state is a tuple whose first item is None and whose
+                # second item is a dictionary mapping slot names to slot values
+                # described in the previous bullet.
+                state_dict = state[1]
+            else:
+                # When the __getstate__() was overwritten and no dict is
+                # returned raise a TypeError
+                raise TypeError("__getstate__() did not return a state dictionary.")
+            for key, value in state_dict.items():
+                _triage_write(
+                    key,
+                    value,
+                    sub_root,
+                    comp_kw,
+                    where,
+                    cleanup_data=cleanup_data,
+                    slash=slash,
+                    use_json=use_json,
+                    use_state=use_state,
+                )
+            return
+
         err_str = "unsupported type %s (in %s)" % (type(value), where)
         raise TypeError(err_str)
 
@@ -448,6 +513,16 @@ def _triage_read(node, slash="ignore"):
             ma_index = _triage_read(node.get("index", None), slash=slash)
             ma_data = _triage_read(node.get("data", None), slash=slash)
             data = multiarray_load(ma_index, ma_data)
+        elif sys.version_info >= (3, 11):
+            # Requires python >= 3.11 as python 3.11 added the default implementation
+            # of the __getstate__() method in the object class.
+            # Based on https://docs.python.org/3/library/pickle.html#object.__getstate__
+            return _setstate(
+                obj_class=_import_class(class_type=type_str),
+                state_dict={
+                    n: _triage_read(node[n], slash="ignore") for n in list(node.keys())
+                },
+            )
         else:
             raise NotImplementedError("Unknown group type: {0}" "".format(type_str))
     elif type_str == "ndarray":
@@ -746,3 +821,35 @@ def multiarray_load(index, array_merged):
         i_prev = i
     array_restore.append(array_merged[i_prev:])
     return np.array(array_restore, dtype=object)
+
+
+def _import_class(class_type):
+    module_path, class_name = class_type.rsplit(".", maxsplit=1)
+    return getattr(
+        importlib.import_module(module_path),
+        class_name,
+    )
+
+
+def _setstate(obj_class, state_dict):
+    if hasattr(obj_class, "__getnewargs_ex__"):
+        args, kwargs = obj_class.__getnewargs_ex__(obj_class)
+    elif hasattr(obj_class, "__getnewargs__"):
+        args = obj_class.__getnewargs__(obj_class)
+        kwargs = {}
+    else:
+        args = ()
+        kwargs = {}
+    obj = obj_class.__new__(obj_class, *args, **kwargs)
+    if hasattr(obj, "__setstate__"):
+        obj.__setstate__(state_dict)
+    elif hasattr(obj, "__dict__"):
+        obj.__dict__ = state_dict
+    elif hasattr(obj, "__slots__"):
+        for k, v in state_dict.items():
+            setattr(obj, k, v)
+    elif len(state_dict) != 0:
+        raise TypeError(
+            "Unexpected state signature, h5io is unable to restore the object."
+        )
+    return obj

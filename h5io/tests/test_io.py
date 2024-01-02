@@ -1,6 +1,7 @@
 """Tests."""
 
 import datetime
+import sys
 from io import UnsupportedOperation
 from pathlib import Path
 
@@ -292,3 +293,139 @@ def test_timezone(name, tmp_path):
     assert y == x
     if name is not None:
         assert y.tzname(None) == name
+
+
+@pytest.mark.skipif(sys.version_info < (3, 11), reason="requires python3.11 or higher")
+def test_state_with_numpy_poly1d(tmp_path):
+    """The np.poly1d() object has an instance __dict__."""
+    test_file = tmp_path / "test.hdf5"
+    polyfit_obj = np.poly1d(np.polyfit([1, 2], [1, 2], 1))
+    pytest.raises(
+        TypeError,
+        write_hdf5,
+        test_file,
+        polyfit_obj,
+        title="polyfit",
+        overwrite="update",
+    )
+    write_hdf5(
+        fname=test_file,
+        data=polyfit_obj,
+        title="polyfit",
+        overwrite="update",
+        use_json=False,
+        use_state=True,
+    )
+    polyfit_obj_reload = read_hdf5(
+        fname=test_file,
+        title="polyfit",
+        slash="ignore",
+    )
+    assert polyfit_obj == polyfit_obj_reload
+    write_hdf5(
+        fname=test_file,
+        data=polyfit_obj,
+        title="polyfit_json",
+        overwrite="update",
+        use_json=True,
+        use_state=True,
+    )
+    polyfit_obj_reload = read_hdf5(
+        fname=test_file,
+        title="polyfit_json",
+        slash="ignore",
+    )
+    assert polyfit_obj == polyfit_obj_reload
+
+
+@pytest.mark.skipif(sys.version_info < (3, 11), reason="requires python3.11 or higher")
+def test_state_with_pathlib(tmp_path):
+    """The Path object has __slots__ and no instance __dict__."""
+    test_file = tmp_path / "test.hdf5"
+    path_obj = Path(tmp_path)
+    pytest.raises(
+        TypeError,
+        write_hdf5,
+        test_file,
+        path_obj,
+        title="pathobj",
+        overwrite="update",
+    )
+    write_hdf5(
+        fname=test_file,
+        data=path_obj,
+        title="pathobj",
+        overwrite="update",
+        use_json=False,
+        use_state=True,
+    )
+    path_obj_reload = read_hdf5(
+        fname=test_file,
+        title="pathobj",
+        slash="ignore",
+    )
+    assert path_obj == path_obj_reload
+    write_hdf5(
+        fname=test_file,
+        data=path_obj,
+        title="pathobj_json",
+        overwrite="update",
+        use_json=True,
+        use_state=True,
+    )
+    path_obj_reload = read_hdf5(
+        fname=test_file,
+        title="pathobj_json",
+        slash="ignore",
+    )
+    assert path_obj == path_obj_reload
+
+
+@pytest.mark.skipif(sys.version_info < (3, 11), reason="requires python3.11 or higher")
+def test_state_with_dynamic_class(tmp_path):
+    """A dynamically defined class cannot be stored in HDF5."""
+    test_file = tmp_path / "test.hdf5"
+
+    class MyClass:
+        a = 1
+
+    my_obj = MyClass()
+    pytest.raises(
+        TypeError,
+        write_hdf5,
+        test_file,
+        my_obj,
+        title="myobj",
+        overwrite="update",
+    )
+    write_hdf5(
+        fname=test_file,
+        data=my_obj,
+        title="myobj",
+        overwrite="update",
+        use_json=False,
+        use_state=True,
+    )
+    pytest.raises(
+        AttributeError,
+        read_hdf5,
+        fname=test_file,
+        title="myobj",
+        slash="ignore",
+    )
+
+
+@pytest.mark.skipif(sys.version_info >= (3, 11), reason="only python3.11 or lower")
+def test_state_python_version_error(tmp_path):
+    """Raise RuntimeError when use_state is used with an invalid python version."""
+    test_file = tmp_path / "test.hdf5"
+    path_obj = Path(tmp_path)
+    pytest.raises(
+        RuntimeError,
+        write_hdf5,
+        test_file,
+        path_obj,
+        title="pathobj",
+        overwrite="update",
+        use_state=True,
+    )
