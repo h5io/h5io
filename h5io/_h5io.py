@@ -367,8 +367,10 @@ def _triage_write(
             # reconstruction of the object (documented in the pickle module)
             # that we don't implement currently in the _triage_read function
             if reconstructor.__module__ != "copyreg" or len(additional) != 0:
-                raise TypeError("Object defines custom reconstructor, can't "
-                                "reconstruct data on read!")
+                raise TypeError(
+                    "Object defines custom reconstructor, can't "
+                    "reconstruct data on read!"
+                )
 
             sub_root = _create_titled_group(root, key, class_type)
 
