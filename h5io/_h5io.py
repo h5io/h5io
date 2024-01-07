@@ -350,7 +350,26 @@ def _triage_write(
 
         if use_state:
             class_type = value.__class__.__module__ + "." + value.__class__.__name__
-            state = value.__getstate__()
+            reduced = value.__reduce__()
+            # Some objects reduce to simply the reconstructor function and its
+            # arguments, without any state
+            if len(reduced) == 2:
+                reconstructor, state, additional = reduced[0], None, []
+            else:
+                reconstructor, _, state, *additional = reduced
+            # For plain objects defining a simple __getstate__ python uses a
+            # default reconstruction function defined in the copyreg module, if
+            # an object wants to be reconstructed in any other way, we don't
+            # know how to save this function in a file, so raise an error here
+            # to avoid failure on reading from HDF5 files.
+            # The same reasoning applies to objects returning more than 3
+            # values from __reduce__.  This requests for additional logic on
+            # reconstruction of the object (documented in the pickle module)
+            # that we don't implement currently in the _triage_read function
+            if reconstructor.__module__ != "copyreg" or len(additional) != 0:
+                raise TypeError("Object defines custom reconstructor, can't "
+                                "reconstruct data on read!")
+
             sub_root = _create_titled_group(root, key, class_type)
 
             # Based on https://docs.python.org/3/library/pickle.html#object.__getstate__
