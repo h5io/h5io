@@ -266,6 +266,9 @@ def _triage_write(
             sub_root = _create_titled_group(root, key, "multiarray")
             _create_titled_dataset(sub_root, "index", "ndarray", ma_index)
             _create_titled_dataset(sub_root, "data", "ndarray", ma_data)
+    elif isinstance(value, np.void):
+        # Based on https://docs.h5py.org/en/stable/strings.html?highlight=binary#how-to-store-raw-binary-data
+        _create_titled_dataset(root, key, "void", value)
     elif sparse is not None and isinstance(value, sparse.csc_matrix):
         sub_root = _create_titled_group(root, key, "csc_matrix")
         _triage_write(
@@ -527,6 +530,9 @@ def _triage_read(node, slash="ignore"):
             raise NotImplementedError("Unknown group type: {0}" "".format(type_str))
     elif type_str == "ndarray":
         data = np.array(node)
+    elif type_str == "void":
+        # Based on https://docs.h5py.org/en/stable/strings.html?highlight=binary#how-to-store-raw-binary-data
+        data = np.void(node)
     elif type_str in ("int", "float"):
         cast = int if type_str == "int" else float
         data = cast(np.array(node)[0])

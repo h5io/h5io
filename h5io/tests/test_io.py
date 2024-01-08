@@ -206,6 +206,7 @@ def test_numpy_values(tmp_path):
         np.float16,
         np.float32,
         np.float64,
+        np.void,
     ]:
         value = cast(1)
         write_hdf5(test_file, value, title="first", overwrite="update")
