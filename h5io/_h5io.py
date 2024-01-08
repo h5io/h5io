@@ -354,7 +354,11 @@ def _triage_write(
             # Some objects reduce to simply the reconstructor function and its
             # arguments, without any state
             if len(reduced) == 2:
-                reconstructor, state, additional = reduced[0], None, []
+                # some objects do not return their internal state via
+                # __reduce__, but can be reconstructed anyway by assigned the
+                # return value from __getstate__ to __dict__, so we call it
+                # here again anyway
+                reconstructor, state, additional = reduced[0], value.__getstate__(), []
             else:
                 reconstructor, _, state, *additional = reduced
             # For plain objects defining a simple __getstate__ python uses a
@@ -366,7 +370,9 @@ def _triage_write(
             # values from __reduce__.  This requests for additional logic on
             # reconstruction of the object (documented in the pickle module)
             # that we don't implement currently in the _triage_read function
-            if reconstructor.__module__ != "copyreg" or len(additional) != 0:
+            is_custom = reconstructor is not type(value) \
+                    and reconstructor.__module__ != "copyreg"
+            if is_custom or len(additional) != 0:
                 raise TypeError(
                     "Object defines custom reconstructor, can't "
                     "reconstruct data on read!"
