@@ -370,8 +370,10 @@ def _triage_write(
             # values from __reduce__.  This requests for additional logic on
             # reconstruction of the object (documented in the pickle module)
             # that we don't implement currently in the _triage_read function
-            is_custom = reconstructor is not type(value) \
-                    and reconstructor.__module__ != "copyreg"
+            is_custom = (
+                reconstructor is not type(value)
+                and reconstructor.__module__ != "copyreg"
+            )
             if is_custom or len(additional) != 0:
                 raise TypeError(
                     "Object defines custom reconstructor, can't "
