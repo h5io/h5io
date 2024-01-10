@@ -376,8 +376,8 @@ def _triage_write(
             )
             if is_custom or len(additional) != 0:
                 raise TypeError(
-                    "Object defines custom reconstructor, can't "
-                    "reconstruct data on read!"
+                    f"Can't write {repr(value)} at location {key}:\n"
+                    f"Class {class_type} defines custom reconstructor."
                 )
 
             sub_root = _create_titled_group(root, key, class_type)
