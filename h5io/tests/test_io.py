@@ -443,13 +443,17 @@ class Singleton(ABCMeta):
     _instances = {}
 
     def __call__(cls, *args, **kwargs):
+        """If an instance already exists, return that one instead."""
         if cls not in cls._instances:
             cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
         return cls._instances[cls]
 
 
 class RawSingleton(metaclass=Singleton):
+    """A toy singleton that defines `__reduce__` to de)serialize an associated var."""
+
     def __reduce__(self):
+        """Return a string associated with the local instance of this class."""
         return "raw"  # The associated global variable
 
 
@@ -457,10 +461,14 @@ raw = RawSingleton()
 
 
 class UpdatingSingleton(metaclass=Singleton):
+    """A toy singleton that preserves data added between save and load."""
+
     def __reduce__(self):
+        """Return a string associated with the local instance of this class."""
         return "updating"
 
     def __setstate__(self, state):
+        """Don't just set it, but update it in case more was added."""
         self.__dict__.update(**state)
 
 
