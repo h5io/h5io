@@ -441,14 +441,9 @@ def test_state_with_singleton(tmp_path):
 
     class Singleton(ABCMeta):
         """
-        Copied from
+        Copied from pyiron_base.
 
         https://github.com/pyiron/pyiron_base/blob/33910343e5e6d4c8bbb5f2522ad6714ec5184ff5/pyiron_base/interfaces/singleton.py#L23
-
-        Implemented with suggestions from
-
-        http://stackoverflow.com/questions/6760685/creating-a-singleton-in-python
-
         """
 
         _instances = {}
