@@ -415,6 +415,24 @@ def test_state_with_dynamic_class(tmp_path):
         slash="ignore",
     )
 
+    for nested in [[my_obj], (my_obj,), {"my_obj": my_obj}]:
+        pytest.raises(
+            TypeError,
+            write_hdf5,
+            test_file,
+            nested,
+            title="nested",
+            overwrite="update",
+        )
+        write_hdf5(
+            fname=test_file,
+            data=nested,
+            title="nested",
+            overwrite="update",
+            use_json=False,
+            use_state=True,
+        )
+
 
 @pytest.mark.skipif(sys.version_info >= (3, 11), reason="only python3.11 or lower")
 def test_state_python_version_error(tmp_path):
