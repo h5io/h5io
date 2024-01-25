@@ -368,6 +368,7 @@ def _triage_write(
                 # set the reconstructor variable so this doesn't look "custom"
                 class_type = value.__class__.__module__ + "." + reduced
                 import copyreg
+
                 reconstructor = copyreg._reconstructor
                 state = value.__getstate__()
                 additional = []
