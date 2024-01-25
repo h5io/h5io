@@ -1,8 +1,8 @@
 """Tests."""
 
-from abc import ABCMeta
 import datetime
 import sys
+from abc import ABCMeta
 from io import UnsupportedOperation
 from pathlib import Path
 
