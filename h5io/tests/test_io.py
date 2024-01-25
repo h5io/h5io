@@ -434,10 +434,7 @@ def test_state_python_version_error(tmp_path):
 
 @pytest.mark.skipif(sys.version_info < (3, 11), reason="requires python3.11 or higher")
 def test_state_with_singleton(tmp_path):
-    """
-    When __reduce__ returns a string, the loaded object should be identical to the
-    saved one.
-    """
+    """When __reduce__ returns a string, load the identical object."""
     test_file = tmp_path / "test.hdf5"
 
     from abc import ABCMeta
