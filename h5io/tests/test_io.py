@@ -430,3 +430,96 @@ def test_state_python_version_error(tmp_path):
         overwrite="update",
         use_state=True,
     )
+
+
+@pytest.mark.skipif(sys.version_info < (3, 11), reason="requires python3.11 or higher")
+def test_state_with_singleton(tmp_path):
+    test_file = tmp_path / "test.hdf5"
+
+    from abc import ABCMeta
+
+    class Singleton(ABCMeta):
+        """
+        Copied from
+
+        https://github.com/pyiron/pyiron_base/blob/33910343e5e6d4c8bbb5f2522ad6714ec5184ff5/pyiron_base/interfaces/singleton.py#L23
+
+        Implemented with suggestions from
+
+        http://stackoverflow.com/questions/6760685/creating-a-singleton-in-python
+
+        """
+
+        _instances = {}
+
+        def __call__(cls, *args, **kwargs):
+            if cls not in cls._instances:
+                cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
+            return cls._instances[cls]
+
+    class RawSingleton(metaclass=Singleton):
+        def __reduce__(self):
+            return "raw"  # The associated global variable
+
+    raw = RawSingleton()
+    raw.foo = "foo"
+
+    write_hdf5(
+        fname=test_file,
+        data=raw,
+        overwrite=True,
+        use_json=False,
+        use_state=True,
+    )
+
+    raw.bar = "bar"
+    raw_reloaded = read_hdf5(fname=test_file)
+
+    assert raw_reloaded is raw
+    assert raw_reloaded.foo == "foo"
+
+    # Reloaded uses __setstate__, which overwrites the __dict__ and we expect to lose
+    # state data added to the singleton between saving and loading
+    pytest.raises(
+        AttributeError,
+        getattr,
+        raw,
+        "bar",
+    )
+    pytest.raises(
+        AttributeError,
+        getattr,
+        raw,
+        "bar",
+    )
+
+    class UpdatingSingleton(metaclass=Singleton):
+        def __reduce__(self):
+            return "updating"
+
+        def __setstate__(self, state):
+            self.__dict__.update(**state)
+
+    updating = UpdatingSingleton()
+    updating.foo = "foo"
+
+    write_hdf5(
+        fname=test_file,
+        data=updating,
+        overwrite=True,
+        use_json=False,
+        use_state=True,
+    )
+
+    updating.bar = "bar"
+    updating.foo = "not foo"
+
+    updating_reloaded = read_hdf5(fname=test_file)
+
+    assert updating_reloaded is updating
+
+    # Because we manually defined __setstate__ to _update_ state data, we should get
+    # the saved `foo` and the post-save `bar` attribute after loading
+    assert updating_reloaded.foo == "foo"  # Load over-wrote "not foo"
+    assert updating.bar == "bar"
+    assert updating_reloaded.bar == "bar"

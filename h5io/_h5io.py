@@ -5,6 +5,7 @@
 
 import datetime
 import importlib
+import inspect
 import json
 import sys
 import tempfile
@@ -356,7 +357,21 @@ def _triage_write(
             reduced = value.__reduce__()
             # Some objects reduce to simply the reconstructor function and its
             # arguments, without any state
-            if len(reduced) == 2:
+            if isinstance(reduced, str):
+                # https://docs.python.org/3/library/pickle.html#object.__reduce__
+                # > If a string is returned, the string should be interpreted as the
+                # > name of a global variable. It should be the object’s local name
+                # > relative to its module; the pickle module searches the module
+                # > namespace to determine the object’s module. This behaviour is
+                # > typically useful for singletons.
+                # In this case, override the class type to get the global, and manually
+                # set the reconstructor variable so this doesn't look "custom"
+                class_type = value.__class__.__module__ + "." + reduced
+                import copyreg
+                reconstructor = copyreg._reconstructor
+                state = value.__getstate__()
+                additional = []
+            elif len(reduced) == 2:
                 # some objects do not return their internal state via
                 # __reduce__, but can be reconstructed anyway by assigned the
                 # return value from __getstate__ to __dict__, so we call it
@@ -875,7 +890,11 @@ def _setstate(obj_class, state_dict):
     else:
         args = ()
         kwargs = {}
-    obj = obj_class.__new__(obj_class, *args, **kwargs)
+    if inspect.isclass(obj_class):
+        obj = obj_class.__new__(obj_class, *args, **kwargs)
+    else:
+        # We got a singleton-like object
+        obj = obj_class
     if hasattr(obj, "__setstate__"):
         obj.__setstate__(state_dict)
     elif hasattr(obj, "__dict__"):
