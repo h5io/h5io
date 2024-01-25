@@ -1,5 +1,6 @@
 """Tests."""
 
+from abc import ABCMeta
 import datetime
 import sys
 from io import UnsupportedOperation
@@ -432,32 +433,45 @@ def test_state_python_version_error(tmp_path):
     )
 
 
+class Singleton(ABCMeta):
+    """
+    Copied from pyiron_base.
+
+    https://github.com/pyiron/pyiron_base/blob/33910343e5e6d4c8bbb5f2522ad6714ec5184ff5/pyiron_base/interfaces/singleton.py#L23
+    """
+
+    _instances = {}
+
+    def __call__(cls, *args, **kwargs):
+        if cls not in cls._instances:
+            cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
+        return cls._instances[cls]
+
+
+class RawSingleton(metaclass=Singleton):
+    def __reduce__(self):
+        return "raw"  # The associated global variable
+
+
+raw = RawSingleton()
+
+
+class UpdatingSingleton(metaclass=Singleton):
+    def __reduce__(self):
+        return "updating"
+
+    def __setstate__(self, state):
+        self.__dict__.update(**state)
+
+
+updating = UpdatingSingleton()
+
+
 @pytest.mark.skipif(sys.version_info < (3, 11), reason="requires python3.11 or higher")
 def test_state_with_singleton(tmp_path):
     """When __reduce__ returns a string, load the identical object."""
     test_file = tmp_path / "test.hdf5"
 
-    from abc import ABCMeta
-
-    class Singleton(ABCMeta):
-        """
-        Copied from pyiron_base.
-
-        https://github.com/pyiron/pyiron_base/blob/33910343e5e6d4c8bbb5f2522ad6714ec5184ff5/pyiron_base/interfaces/singleton.py#L23
-        """
-
-        _instances = {}
-
-        def __call__(cls, *args, **kwargs):
-            if cls not in cls._instances:
-                cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
-            return cls._instances[cls]
-
-    class RawSingleton(metaclass=Singleton):
-        def __reduce__(self):
-            return "raw"  # The associated global variable
-
-    raw = RawSingleton()
     raw.foo = "foo"
 
     write_hdf5(
@@ -489,14 +503,6 @@ def test_state_with_singleton(tmp_path):
         "bar",
     )
 
-    class UpdatingSingleton(metaclass=Singleton):
-        def __reduce__(self):
-            return "updating"
-
-        def __setstate__(self, state):
-            self.__dict__.update(**state)
-
-    updating = UpdatingSingleton()
     updating.foo = "foo"
 
     write_hdf5(
