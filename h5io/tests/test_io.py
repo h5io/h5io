@@ -305,7 +305,6 @@ class MyClass:
 
 def test_class_storage(tmp_path):
     """Test storing a class."""
-
     test_file = tmp_path / "test.hdf5"
 
     write_hdf5(
@@ -319,6 +318,7 @@ def test_class_storage(tmp_path):
     loaded_class = read_hdf5(fname=test_file, title="myclass")
 
     assert loaded_class.foo() == MyClass.foo()
+
 
 @pytest.mark.skipif(sys.version_info < (3, 11), reason="requires python3.11 or higher")
 def test_state_with_numpy_poly1d(tmp_path):
