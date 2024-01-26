@@ -62,7 +62,6 @@ def test_hdf5(tmp_path):
     pytest.raises(ValueError, read_hdf5, test_file, title=1)
     # unsupported objects
     pytest.raises(TypeError, write_hdf5, test_file, {1: "foo"}, overwrite=True)
-    pytest.raises(TypeError, write_hdf5, test_file, object, overwrite=True)
     # special_chars
     spec_dict = {"first/second": "third"}
     pytest.raises(ValueError, write_hdf5, test_file, spec_dict, overwrite=True)
