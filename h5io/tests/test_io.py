@@ -300,6 +300,7 @@ class SaveableClass:
 
     @classmethod
     def foo(cls):
+        """Just a thing on our class to easily see we're getting what we ask for."""
         return 42
 
 
