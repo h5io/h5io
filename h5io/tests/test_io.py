@@ -297,6 +297,7 @@ def test_timezone(name, tmp_path):
 
 
 class MyClass:
+    """A toy class to test saving and loading classes."""
     @classmethod
     def foo(cls):
         return 42
