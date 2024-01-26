@@ -296,6 +296,29 @@ def test_timezone(name, tmp_path):
         assert y.tzname(None) == name
 
 
+class MyClass:
+    @classmethod
+    def foo(cls):
+        return 42
+
+
+def test_class_storage(tmp_path):
+    """Test storing a class."""
+
+    test_file = tmp_path / "test.hdf5"
+
+    write_hdf5(
+        fname=test_file,
+        data=MyClass,
+        title="myclass",
+        overwrite="update",
+        use_json=False,
+        use_state=False,
+    )
+    loaded_class = read_hdf5(fname=test_file, title="myclass")
+
+    assert loaded_class.foo() == MyClass.foo()
+
 @pytest.mark.skipif(sys.version_info < (3, 11), reason="requires python3.11 or higher")
 def test_state_with_numpy_poly1d(tmp_path):
     """The np.poly1d() object has an instance __dict__."""
