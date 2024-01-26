@@ -295,7 +295,7 @@ def test_timezone(name, tmp_path):
         assert y.tzname(None) == name
 
 
-class MyClass:
+class SaveableClass:
     """A toy class to test saving and loading classes."""
 
     @classmethod
@@ -309,7 +309,7 @@ def test_class_storage(tmp_path):
 
     write_hdf5(
         fname=test_file,
-        data=MyClass,
+        data=SaveableClass,
         title="myclass",
         overwrite="update",
         use_json=False,
@@ -317,7 +317,7 @@ def test_class_storage(tmp_path):
     )
     loaded_class = read_hdf5(fname=test_file, title="myclass")
 
-    assert loaded_class.foo() == MyClass.foo()
+    assert loaded_class.foo() == SaveableClass.foo()
 
 
 @pytest.mark.skipif(sys.version_info < (3, 11), reason="requires python3.11 or higher")
