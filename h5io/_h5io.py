@@ -233,10 +233,7 @@ def _triage_write(
     elif inspect.isclass(value):
         class_str = value.__module__ + "." + value.__name__
         _create_titled_dataset(
-            root,
-            key,
-            "class",
-            np.frombuffer(class_str.encode("utf-8"), np.uint8)
+            root, key, "class", np.frombuffer(class_str.encode("utf-8"), np.uint8)
         )
     elif isinstance(value, (int, float)):
         if isinstance(value, int):
