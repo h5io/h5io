@@ -308,6 +308,31 @@ def test_class_storage(tmp_path):
     """Test storing a class."""
     test_file = tmp_path / "test.hdf5"
 
+    # Built-in
+    write_hdf5(
+        fname=test_file,
+        data=int,
+        title="myclass",
+        overwrite="update",
+        use_json=False,
+        use_state=False,
+    )
+    loaded_class = read_hdf5(fname=test_file, title="myclass")
+    assert loaded_class is int
+
+    # Std. Lib / importable class
+    write_hdf5(
+        fname=test_file,
+        data=datetime.datetime,
+        title="myclass",
+        overwrite="update",
+        use_json=False,
+        use_state=False,
+    )
+    loaded_class = read_hdf5(fname=test_file, title="myclass")
+    assert loaded_class is datetime.datetime
+
+    # Local custom class
     write_hdf5(
         fname=test_file,
         data=SaveableClass,
@@ -318,6 +343,7 @@ def test_class_storage(tmp_path):
     )
     loaded_class = read_hdf5(fname=test_file, title="myclass")
 
+    assert loaded_class is SaveableClass
     assert loaded_class.foo() == SaveableClass.foo()
 
 
