@@ -62,7 +62,6 @@ def test_hdf5(tmp_path):
     pytest.raises(ValueError, read_hdf5, test_file, title=1)
     # unsupported objects
     pytest.raises(TypeError, write_hdf5, test_file, {1: "foo"}, overwrite=True)
-    pytest.raises(TypeError, write_hdf5, test_file, object, overwrite=True)
     # special_chars
     spec_dict = {"first/second": "third"}
     pytest.raises(ValueError, write_hdf5, test_file, spec_dict, overwrite=True)
@@ -294,6 +293,58 @@ def test_timezone(name, tmp_path):
     assert y == x
     if name is not None:
         assert y.tzname(None) == name
+
+
+class SaveableClass:
+    """A toy class to test saving and loading classes."""
+
+    @classmethod
+    def foo(cls):
+        """Just a thing on our class to easily see we're getting what we ask for."""
+        return 42
+
+
+def test_class_storage(tmp_path):
+    """Test storing a class."""
+    test_file = tmp_path / "test.hdf5"
+
+    # Built-in
+    write_hdf5(
+        fname=test_file,
+        data=int,
+        title="myclass",
+        overwrite="update",
+        use_json=False,
+        use_state=False,
+    )
+    loaded_class = read_hdf5(fname=test_file, title="myclass")
+    assert loaded_class is int
+
+    # Std. Lib / importable class
+    write_hdf5(
+        fname=test_file,
+        data=datetime.datetime,
+        title="myclass",
+        overwrite="update",
+        use_json=False,
+        use_state=False,
+    )
+    loaded_class = read_hdf5(fname=test_file, title="myclass")
+    assert loaded_class is datetime.datetime
+
+    # Local custom class
+    write_hdf5(
+        fname=test_file,
+        data=SaveableClass,
+        title="myclass",
+        overwrite="update",
+        use_json=False,
+        use_state=False,
+    )
+    loaded_class = read_hdf5(fname=test_file, title="myclass")
+
+    assert loaded_class is SaveableClass
+    assert loaded_class.foo() == SaveableClass.foo()
 
 
 @pytest.mark.skipif(sys.version_info < (3, 11), reason="requires python3.11 or higher")

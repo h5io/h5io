@@ -8,6 +8,7 @@ import importlib
 import json
 import sys
 import tempfile
+from inspect import isclass
 from io import UnsupportedOperation
 from os import path as op
 from pathlib import PurePath
@@ -232,6 +233,11 @@ def _triage_write(
             )
     elif isinstance(value, type(None)):
         _create_titled_dataset(root, key, "None", [False])
+    elif isclass(value):
+        class_str = value.__module__ + "." + value.__name__
+        _create_titled_dataset(
+            root, key, "class", np.frombuffer(class_str.encode("utf-8"), np.uint8)
+        )
     elif isinstance(value, (int, float)):
         if isinstance(value, int):
             title = "int"
@@ -593,6 +599,9 @@ def _triage_read(node, slash="ignore"):
         data = json.loads(node_unicode)
     elif type_str == "None":
         data = None
+    elif type_str == "class":
+        class_str = str(np.array(node).tobytes().decode("utf-8"))
+        data = _import_class(class_str)
     else:
         raise TypeError("Unknown node type: {0}".format(type_str))
     return data
