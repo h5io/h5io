@@ -215,6 +215,7 @@ def _triage_write(
                 where + '["%s"]' % key,
                 cleanup_data=cleanup_data,
                 slash=slash,
+                use_state=use_state,
             )
     elif isinstance(value, (list, tuple)):
         title = "list" if isinstance(value, list) else "tuple"
@@ -228,6 +229,7 @@ def _triage_write(
                 where + "[%s]" % vi,
                 cleanup_data=cleanup_data,
                 slash=slash,
+                use_state=use_state,
             )
     elif isinstance(value, type(None)):
         _create_titled_dataset(root, key, "None", [False])
@@ -285,6 +287,7 @@ def _triage_write(
             where + ".csc_matrix_data",
             cleanup_data=cleanup_data,
             slash=slash,
+            use_state=use_state,
         )
         _triage_write(
             "indices",
@@ -294,6 +297,7 @@ def _triage_write(
             where + ".csc_matrix_indices",
             cleanup_data=cleanup_data,
             slash=slash,
+            use_state=use_state,
         )
         _triage_write(
             "indptr",
@@ -303,6 +307,7 @@ def _triage_write(
             where + ".csc_matrix_indptr",
             cleanup_data=cleanup_data,
             slash=slash,
+            use_state=use_state,
         )
     elif sparse is not None and isinstance(value, sparse.csr_matrix):
         sub_root = _create_titled_group(root, key, "csr_matrix")
@@ -314,6 +319,7 @@ def _triage_write(
             where + ".csr_matrix_data",
             cleanup_data=cleanup_data,
             slash=slash,
+            use_state=use_state,
         )
         _triage_write(
             "indices",
@@ -323,6 +329,7 @@ def _triage_write(
             where + ".csr_matrix_indices",
             cleanup_data=cleanup_data,
             slash=slash,
+            use_state=use_state,
         )
         _triage_write(
             "indptr",
@@ -332,6 +339,7 @@ def _triage_write(
             where + ".csr_matrix_indptr",
             cleanup_data=cleanup_data,
             slash=slash,
+            use_state=use_state,
         )
         _triage_write(
             "shape",
@@ -341,6 +349,7 @@ def _triage_write(
             where + ".csr_matrix_shape",
             cleanup_data=cleanup_data,
             slash=slash,
+            use_state=use_state,
         )
     else:
         try:
