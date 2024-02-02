@@ -520,17 +520,27 @@ class Singleton(ABCMeta):
 
 class StringReduce:
     def __reduce__(self):
-        """Return a string associated with the local instance of this class."""
-        return "string_reduce_instance"  # The associated global variable
+        """
+        Return a string associated with a local object to return.
+
+        Normally, this would be some instance of this very class, e.g. in the case of
+        a singleton. Here, we're going to set the variable to something totally
+        different for pedagogical reasons, to demonstrate that on read you get
+        _exactly_ what you specify here.
+        """
+        return "what_gets_loaded"  # The associated global variable
 
 
-string_reduce_instance = StringReduce()
+what_gets_loaded = {"the_point_is": "this is some very particular object"}
 
 
 @pytest.mark.skipif(sys.version_info < (3, 11), reason="requires python3.11 or higher")
 def test_state_with_singleton(tmp_path):
     """When __reduce__ returns a string, load the identical object."""
     test_file = tmp_path / "test.hdf5"
+
+    string_reduce_instance = StringReduce()
+    assert not isinstance(string_reduce_instance, dict)
 
     write_hdf5(
         fname=test_file,
@@ -545,4 +555,5 @@ def test_state_with_singleton(tmp_path):
     # We don't just expect to get back another instance of the same class, with a
     # string return from __reduce__, we expect to get back the exact thing specified
     # in that string!
-    assert reloaded is string_reduce_instance
+    assert not isinstance(reloaded, StringReduce)  # Not what got saved, but rather
+    assert reloaded is what_gets_loaded  # The _exact_ object specified in __reduce__
