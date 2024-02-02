@@ -3,6 +3,7 @@
 #
 # License: BSD (3-clause)
 
+import copyreg
 import datetime
 import importlib
 import inspect
@@ -382,7 +383,6 @@ def _triage_write(
                 # In this case, override the class type to get the global, and manually
                 # set the reconstructor variable so this doesn't look "custom"
                 class_type = value.__class__.__module__ + "." + reduced
-                import copyreg
 
                 reconstructor = copyreg._reconstructor
                 state = value.__getstate__()
