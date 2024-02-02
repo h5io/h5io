@@ -912,7 +912,7 @@ def _setstate(obj_class, state_dict):
     if inspect.isclass(obj_class):
         obj = obj_class.__new__(obj_class, *args, **kwargs)
     else:
-        # We got a singleton-like object
+        # We got an object which is not a class - it could be a singleton-like object - we just return the object without initialisation. 
         obj = obj_class
     if hasattr(obj, "__setstate__"):
         obj.__setstate__(state_dict)
