@@ -502,22 +502,6 @@ def test_state_python_version_error(tmp_path):
     )
 
 
-class Singleton(ABCMeta):
-    """
-    Copied from pyiron_base.
-
-    https://github.com/pyiron/pyiron_base/blob/33910343e5e6d4c8bbb5f2522ad6714ec5184ff5/pyiron_base/interfaces/singleton.py#L23
-    """
-
-    _instances = {}
-
-    def __call__(cls, *args, **kwargs):
-        """If an instance already exists, return that one instead."""
-        if cls not in cls._instances:
-            cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
-        return cls._instances[cls]
-
-
 class StringReduce:
     """A class to test the case of `__reduce__` returning a string."""
 
