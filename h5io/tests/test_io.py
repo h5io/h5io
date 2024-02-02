@@ -519,6 +519,7 @@ class Singleton(ABCMeta):
 
 
 class StringReduce:
+    """A class to test the case of `__reduce__` returning a string."""
     def __reduce__(self):
         """
         Return a string associated with a local object to return.
