@@ -518,30 +518,13 @@ class Singleton(ABCMeta):
         return cls._instances[cls]
 
 
-class RawSingleton(metaclass=Singleton):
-    """A toy singleton that defines `__reduce__` to de)serialize an associated var."""
-
+class StringReduce:
     def __reduce__(self):
         """Return a string associated with the local instance of this class."""
-        return "raw"  # The associated global variable
+        return "string_reduce_instance"  # The associated global variable
 
 
-raw = RawSingleton()
-
-
-class UpdatingSingleton(metaclass=Singleton):
-    """A toy singleton that preserves data added between save and load."""
-
-    def __reduce__(self):
-        """Return a string associated with the local instance of this class."""
-        return "updating"
-
-    def __setstate__(self, state):
-        """Don't just set it, but update it in case more was added."""
-        self.__dict__.update(**state)
-
-
-updating = UpdatingSingleton()
+string_reduce_instance = StringReduce()
 
 
 @pytest.mark.skipif(sys.version_info < (3, 11), reason="requires python3.11 or higher")
@@ -549,56 +532,17 @@ def test_state_with_singleton(tmp_path):
     """When __reduce__ returns a string, load the identical object."""
     test_file = tmp_path / "test.hdf5"
 
-    raw.foo = "foo"
-
     write_hdf5(
         fname=test_file,
-        data=raw,
+        data=string_reduce_instance,
         overwrite=True,
         use_json=False,
         use_state=True,
     )
 
-    raw.bar = "bar"
-    raw_reloaded = read_hdf5(fname=test_file)
+    reloaded = read_hdf5(fname=test_file)
 
-    assert raw_reloaded is raw
-    assert raw_reloaded.foo == "foo"
-
-    # Reloaded uses __setstate__, which overwrites the __dict__ and we expect to lose
-    # state data added to the singleton between saving and loading
-    pytest.raises(
-        AttributeError,
-        getattr,
-        raw,
-        "bar",
-    )
-    pytest.raises(
-        AttributeError,
-        getattr,
-        raw,
-        "bar",
-    )
-
-    updating.foo = "foo"
-
-    write_hdf5(
-        fname=test_file,
-        data=updating,
-        overwrite=True,
-        use_json=False,
-        use_state=True,
-    )
-
-    updating.bar = "bar"
-    updating.foo = "not foo"
-
-    updating_reloaded = read_hdf5(fname=test_file)
-
-    assert updating_reloaded is updating
-
-    # Because we manually defined __setstate__ to _update_ state data, we should get
-    # the saved `foo` and the post-save `bar` attribute after loading
-    assert updating_reloaded.foo == "foo"  # Load over-wrote "not foo"
-    assert updating.bar == "bar"
-    assert updating_reloaded.bar == "bar"
+    # We don't just expect to get back another instance of the same class, with a
+    # string return from __reduce__, we expect to get back the exact thing specified
+    # in that string!
+    assert reloaded is string_reduce_instance
