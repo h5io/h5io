@@ -937,7 +937,9 @@ def _guard_string_reductions(reduced, value, class_type, state_dict):
     # `PicklingError` when `__reduce__` returns a string but the reduced object is not
     # the object being pickled, so we do the same
     if isinstance(reduced, str):
-        reduced_obj = _setstate(class_type, state_dict=state_dict)
+        reduced_obj = _setstate(
+            _import_class(class_type=class_type), state_dict=state_dict
+        )
         if reduced_obj is not value:
             raise ValueError(
                 f"Can't write {value}: it's not the same object as {reduced}"
