@@ -414,6 +414,8 @@ def _triage_write(
                     f"Class {class_type} defines custom reconstructor."
                 )
 
+            sub_root = _create_titled_group(root, key, class_type)
+
             # Based on https://docs.python.org/3/library/pickle.html#object.__getstate__
             # Requires python >= 3.11 as python 3.11 added the default implementation
             # of the __getstate__() method in the object class.
@@ -449,7 +451,6 @@ def _triage_write(
 
             _guard_string_reductions(reduced, value, class_type, state_dict)
 
-            sub_root = _create_titled_group(root, key, class_type)
             for key, value in state_dict.items():
                 _triage_write(
                     key,
