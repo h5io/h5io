@@ -1,5 +1,6 @@
 """Tests."""
 
+from abc import ABCMeta
 import datetime
 import sys
 from io import UnsupportedOperation
@@ -501,22 +502,40 @@ def test_state_python_version_error(tmp_path):
     )
 
 
-class StringReduce:
+class StringReduceMismatch:
     """A class to test the case of `__reduce__` returning a string."""
 
     def __reduce__(self):
         """
         Return a string associated with a local object to return.
 
-        Normally, this would be some instance of this very class, e.g. in the case of
-        a singleton. Here, we're going to set the variable to something totally
-        different for pedagogical reasons, to demonstrate that on read you get
-        _exactly_ what you specify here.
+        Pickle requires that the object found by importing a returned reduce string
+        be the _same object_ getting reduced. We follow this requirement and expect
+        instances of this class to not store.
         """
         return "what_gets_loaded"  # The associated global variable
 
 
-what_gets_loaded = {"the_point_is": "this is some very particular object"}
+what_gets_loaded = {"the_point_is": "this is not the same object"}
+
+
+class Singleton(ABCMeta):
+    """A singleton metaclass for testing when `__reduce__` returns a string."""
+    _instances = {}
+
+    def __call__(cls, *args, **kwargs):
+        if cls not in cls._instances:
+            cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
+        return cls._instances[cls]
+
+
+class SingletonReduce(metaclass=Singleton):
+    """A singleton class for testing when `__reduce__` returns a string."""
+    def __reduce__(self):
+        return "MY_SINGLETON"
+
+
+MY_SINGLETON = SingletonReduce()
 
 
 @pytest.mark.skipif(sys.version_info < (3, 11), reason="requires python3.11 or higher")
@@ -524,21 +543,26 @@ def test_state_with_singleton(tmp_path):
     """When __reduce__ returns a string, load the identical object."""
     test_file = tmp_path / "test.hdf5"
 
-    string_reduce_instance = StringReduce()
-    assert not isinstance(string_reduce_instance, dict)
+    string_reduce_mismatch_instance = StringReduceMismatch()
+    assert string_reduce_mismatch_instance is not what_gets_loaded  # Sanity check
+    pytest.raises(
+        ValueError,
+        write_hdf5,
+        fname=test_file,
+        title="myobj",
+        overwrite=True,
+        use_state=True
+    )  # Should not be allowed to save when the __reduce__ string does not give
+    # the same object that's being reduced
 
+    singleton_string_reduce = SingletonReduce()
     write_hdf5(
         fname=test_file,
-        data=string_reduce_instance,
+        data=singleton_string_reduce,
         overwrite=True,
         use_json=False,
         use_state=True,
     )
 
     reloaded = read_hdf5(fname=test_file)
-
-    # We don't just expect to get back another instance of the same class, with a
-    # string return from __reduce__, we expect to get back the exact thing specified
-    # in that string!
-    assert not isinstance(reloaded, StringReduce)  # Not what got saved, but rather
-    assert reloaded is what_gets_loaded  # The _exact_ object specified in __reduce__
+    assert reloaded is MY_SINGLETON  # The _exact_ object specified in __reduce__
