@@ -1,8 +1,8 @@
 """Tests."""
 
-from abc import ABCMeta
 import datetime
 import sys
+from abc import ABCMeta
 from io import UnsupportedOperation
 from pathlib import Path
 
@@ -521,6 +521,7 @@ what_gets_loaded = {"the_point_is": "this is not the same object"}
 
 class Singleton(ABCMeta):
     """A singleton metaclass for testing when `__reduce__` returns a string."""
+
     _instances = {}
 
     def __call__(cls, *args, **kwargs):
@@ -531,6 +532,7 @@ class Singleton(ABCMeta):
 
 class SingletonReduce(metaclass=Singleton):
     """A singleton class for testing when `__reduce__` returns a string."""
+
     def __reduce__(self):
         return "MY_SINGLETON"
 
@@ -551,7 +553,7 @@ def test_state_with_singleton(tmp_path):
         fname=test_file,
         data=string_reduce_mismatch_instance,
         overwrite=True,
-        use_state=True
+        use_state=True,
     )  # Should not be allowed to save when the __reduce__ string does not give
     # the same object that's being reduced
 
