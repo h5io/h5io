@@ -549,7 +549,7 @@ def test_state_with_singleton(tmp_path):
         ValueError,
         write_hdf5,
         fname=test_file,
-        title="myobj",
+        data=string_reduce_mismatch_instance,
         overwrite=True,
         use_state=True
     )  # Should not be allowed to save when the __reduce__ string does not give
