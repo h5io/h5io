@@ -905,15 +905,22 @@ def _import_class(class_type):
 
 
 def _setstate(obj_class, state_dict):
+    got_a_class = inspect.isclass(obj_class)
     if hasattr(obj_class, "__getnewargs_ex__"):
-        args, kwargs = obj_class.__getnewargs_ex__(obj_class)
+        if got_a_class:
+            args, kwargs = obj_class.__getnewargs_ex__(obj_class)
+        else:  # Self is first argument
+            args, kwargs = obj_class.__getnewargs_ex__()
     elif hasattr(obj_class, "__getnewargs__"):
-        args = obj_class.__getnewargs__(obj_class)
+        if got_a_class:
+            args = obj_class.__getnewargs__(obj_class)
+        else:  # Self is first argument
+            args = obj_class.__getnewargs__()
         kwargs = {}
     else:
         args = ()
         kwargs = {}
-    if inspect.isclass(obj_class):
+    if got_a_class:
         obj = obj_class.__new__(obj_class, *args, **kwargs)
     else:
         # We got an object which is not a class - it could be a singleton-like object -
