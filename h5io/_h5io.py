@@ -3,8 +3,10 @@
 #
 # License: BSD (3-clause)
 
+import copyreg
 import datetime
 import importlib
+import inspect
 import json
 import sys
 import tempfile
@@ -371,7 +373,21 @@ def _triage_write(
             reduced = value.__reduce__()
             # Some objects reduce to simply the reconstructor function and its
             # arguments, without any state
-            if len(reduced) == 2:
+            if isinstance(reduced, str):
+                # https://docs.python.org/3/library/pickle.html#object.__reduce__
+                # > If a string is returned, the string should be interpreted as the
+                # > name of a global variable. It should be the object’s local name
+                # > relative to its module; the pickle module searches the module
+                # > namespace to determine the object’s module. This behaviour is
+                # > typically useful for singletons.
+                # In this case, override the class type to get the global, and manually
+                # set the reconstructor variable so this doesn't look "custom"
+                class_type = value.__class__.__module__ + "." + reduced
+
+                reconstructor = copyreg._reconstructor
+                state = value.__getstate__()
+                additional = []
+            elif len(reduced) == 2:
                 # some objects do not return their internal state via
                 # __reduce__, but can be reconstructed anyway by assigned the
                 # return value from __getstate__ to __dict__, so we call it
@@ -406,6 +422,7 @@ def _triage_write(
             if state is None:
                 # For a class that has no instance __dict__ and no __slots__,
                 # the default state is None.
+                _guard_string_reductions(reduced, value, class_type, {})
                 return
             elif isinstance(state, dict):
                 # For a class that has an instance __dict__ and no __slots__,
@@ -431,6 +448,9 @@ def _triage_write(
                 # When the __getstate__() was overwritten and no dict is
                 # returned raise a TypeError
                 raise TypeError("__getstate__() did not return a state dictionary.")
+
+            _guard_string_reductions(reduced, value, class_type, state_dict)
+
             for key, value in state_dict.items():
                 _triage_write(
                     key,
@@ -885,15 +905,27 @@ def _import_class(class_type):
 
 
 def _setstate(obj_class, state_dict):
+    got_a_class = inspect.isclass(obj_class)
     if hasattr(obj_class, "__getnewargs_ex__"):
-        args, kwargs = obj_class.__getnewargs_ex__(obj_class)
+        if got_a_class:
+            args, kwargs = obj_class.__getnewargs_ex__(obj_class)
+        else:  # Self is first argument
+            args, kwargs = obj_class.__getnewargs_ex__()
     elif hasattr(obj_class, "__getnewargs__"):
-        args = obj_class.__getnewargs__(obj_class)
+        if got_a_class:
+            args = obj_class.__getnewargs__(obj_class)
+        else:  # Self is first argument
+            args = obj_class.__getnewargs__()
         kwargs = {}
     else:
         args = ()
         kwargs = {}
-    obj = obj_class.__new__(obj_class, *args, **kwargs)
+    if got_a_class:
+        obj = obj_class.__new__(obj_class, *args, **kwargs)
+    else:
+        # We got an object which is not a class - it could be a singleton-like object -
+        # we just return the object without initialisation.
+        obj = obj_class
     if hasattr(obj, "__setstate__"):
         obj.__setstate__(state_dict)
     elif hasattr(obj, "__dict__"):
@@ -906,3 +938,17 @@ def _setstate(obj_class, state_dict):
             "Unexpected state signature, h5io is unable to restore the object."
         )
     return obj
+
+
+def _guard_string_reductions(reduced, value, class_type, state_dict):
+    # use_state adheres to pickling behaviour throughout, and pickle throws a
+    # `PicklingError` when `__reduce__` returns a string but the reduced object is not
+    # the object being pickled, so we do the same
+    if isinstance(reduced, str):
+        reduced_obj = _setstate(
+            _import_class(class_type=class_type), state_dict=state_dict
+        )
+        if reduced_obj is not value:
+            raise ValueError(
+                f"Can't write {value}: it's not the same object as {reduced}"
+            )
