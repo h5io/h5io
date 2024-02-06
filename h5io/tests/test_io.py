@@ -525,6 +525,7 @@ class Singleton(ABCMeta):
     _instances = {}
 
     def __call__(cls, *args, **kwargs):
+        """If there is an existing instance, return that instead of a new one"""
         if cls not in cls._instances:
             cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
         return cls._instances[cls]
@@ -534,6 +535,7 @@ class SingletonReduce(metaclass=Singleton):
     """A singleton class for testing when `__reduce__` returns a string."""
 
     def __reduce__(self):
+        """Return a global"""
         return "MY_SINGLETON"
 
 
