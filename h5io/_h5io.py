@@ -107,9 +107,18 @@ def write_hdf5(
         To accelerate the read and write performance of small dictionaries and
         lists they can be combined to JSON objects and stored as strings.
     use_state: bool
-        To store objects of unsupported types the __getstate__() method is used
-        to retrieve a dictionary which defines the state of the object and store
-        the content of this dictionary in the HDF5 file. (requires python >=3.11)
+        To store objects of unsupported types the `__getstate__()` and other dunder
+        methods (`__reduce__()`, `__getnewargs__()`  etc.) are used to  retrieve a
+        dictionary which defines the state of the object and store the content of this
+        dictionary in the HDF5 file. The interface strives to behave in like `pickle`,
+        including the same fragility to differences in the environment between save-
+        and load-time -- i.e. if modules and classes are not consistent between saving
+        and loading the object may fail to load, or load yet still be different from
+        the saved object. Since this flag also -- beneficially -- makes it easy to save
+        and load your own custom classes, extra care must be taken when the class being
+        saved is in the module `__main__`, e.g. when working inside a jupyter notebook.
+        In this case, care should be taken that any relevant classes are re-declared
+        prior to loading. (Requires python >=3.11)
     """
     h5py = _check_h5py()
     if use_state and sys.version_info < (3, 11):
