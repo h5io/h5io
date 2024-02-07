@@ -110,7 +110,7 @@ def write_hdf5(
         To store objects of unsupported types the `__getstate__()` and other dunder
         methods (`__reduce__()`, `__getnewargs__()`  etc.) are used to  retrieve a
         dictionary which defines the state of the object and store the content of this
-        dictionary in the HDF5 file. The interface strives to behave in like `pickle`,
+        dictionary in the HDF5 file. The interface strives to behave like `pickle`,
         including the same fragility to differences in the environment between save-
         and load-time -- i.e. if modules and classes are not consistent between saving
         and loading the object may fail to load, or load yet still be different from
