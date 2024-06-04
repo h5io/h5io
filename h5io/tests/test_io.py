@@ -8,7 +8,7 @@ from pathlib import Path
 
 import numpy as np
 import pytest
-from numpy.testing import assert_equal
+from numpy.testing import assert_array_equal, assert_equal
 
 try:
     from scipy import sparse
@@ -570,3 +570,21 @@ def test_state_with_singleton(tmp_path):
 
     reloaded = read_hdf5(fname=test_file)
     assert reloaded is MY_SINGLETON  # The _exact_ object specified in __reduce__
+
+
+@pytest.mark.parametrize("kind", ("csr_matrix", "csc_matrix", "csr_array", "csc_array"))
+@pytest.mark.skipif(sparse is None, reason="scipy.sparse is required")
+def test_sparse(kind, tmp_path):
+    """Test sparse types."""
+    x = np.zeros((5, 4))
+    x[3, 2] = 1
+    klass = getattr(sparse, kind)
+    spx = klass(x)
+    assert len(spx.data) == 1  # one element
+    assert sparse.issparse(spx)
+    assert_array_equal(x, spx.toarray())
+    out = tmp_path / "test.h5"
+    write_hdf5(out, dict(spx=spx, x=x))
+    got = read_hdf5(out)
+    assert_array_equal(x, got["x"])
+    assert_array_equal(x, got["spx"].toarray())
