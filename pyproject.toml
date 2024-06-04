@@ -4,9 +4,9 @@ addopts = """--durations=20 --doctest-modules -ra --cov-report= --tb=short \
     --color=yes --capture=sys --cov=h5io"""
 junit_family = "xunit2"
 
-[tool.ruff]
+[tool.ruff.lint]
 select = ["E", "F", "W", "D", "I"]
 exclude = ["__init__.py"]
 
-[tool.ruff.pydocstyle]
+[tool.ruff.lint.pydocstyle]
 convention = "numpy"

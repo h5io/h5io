@@ -23,6 +23,8 @@ _path_like = (str, PurePath)
 special_chars = {"{FWDSLASH}": "/"}
 tab_str = "----"
 
+_SPARSE_KINDS = ("csc_matrix", "csr_matrix", "csc_array", "csr_array")
+
 
 def _import_sparse():
     try:
@@ -288,14 +290,19 @@ def _triage_write(
     elif isinstance(value, np.void):
         # Based on https://docs.h5py.org/en/stable/strings.html#how-to-store-raw-binary-data
         _create_titled_dataset(root, key, "void", value)
-    elif sparse is not None and isinstance(value, sparse.csc_matrix):
-        sub_root = _create_titled_group(root, key, "csc_matrix")
+    elif sparse is not None and any(
+        isinstance(value, getattr(sparse, kind, type(None))) for kind in _SPARSE_KINDS
+    ):
+        for kind in _SPARSE_KINDS:
+            if isinstance(value, getattr(sparse, kind)):
+                break
+        sub_root = _create_titled_group(root, key, kind)
         _triage_write(
             "data",
             value.data,
             sub_root,
             comp_kw,
-            where + ".csc_matrix_data",
+            f"{where}.{kind}_data",
             cleanup_data=cleanup_data,
             slash=slash,
             use_state=use_state,
@@ -305,7 +312,7 @@ def _triage_write(
             value.indices,
             sub_root,
             comp_kw,
-            where + ".csc_matrix_indices",
+            f"{where}.{kind}_indices",
             cleanup_data=cleanup_data,
             slash=slash,
             use_state=use_state,
@@ -315,39 +322,7 @@ def _triage_write(
             value.indptr,
             sub_root,
             comp_kw,
-            where + ".csc_matrix_indptr",
-            cleanup_data=cleanup_data,
-            slash=slash,
-            use_state=use_state,
-        )
-    elif sparse is not None and isinstance(value, sparse.csr_matrix):
-        sub_root = _create_titled_group(root, key, "csr_matrix")
-        _triage_write(
-            "data",
-            value.data,
-            sub_root,
-            comp_kw,
-            where + ".csr_matrix_data",
-            cleanup_data=cleanup_data,
-            slash=slash,
-            use_state=use_state,
-        )
-        _triage_write(
-            "indices",
-            value.indices,
-            sub_root,
-            comp_kw,
-            where + ".csr_matrix_indices",
-            cleanup_data=cleanup_data,
-            slash=slash,
-            use_state=use_state,
-        )
-        _triage_write(
-            "indptr",
-            value.indptr,
-            sub_root,
-            comp_kw,
-            where + ".csr_matrix_indptr",
+            f"{where}.{kind}_indptr",
             cleanup_data=cleanup_data,
             slash=slash,
             use_state=use_state,
@@ -357,7 +332,7 @@ def _triage_write(
             value.shape,
             sub_root,
             comp_kw,
-            where + ".csr_matrix_shape",
+            f"{where}.{kind}_shape",
             cleanup_data=cleanup_data,
             slash=slash,
             use_state=use_state,
@@ -557,26 +532,20 @@ def _triage_read(node, slash="ignore"):
             assert len(data) == ii
             data = tuple(data) if type_str == "tuple" else data
             return data
-        elif type_str == "csc_matrix":
+        elif type_str in _SPARSE_KINDS:
             if sparse is None:
                 raise RuntimeError("scipy must be installed to read this data")
-            data = sparse.csc_matrix(
-                (
-                    _triage_read(node["data"], slash=slash),
-                    _triage_read(node["indices"], slash=slash),
-                    _triage_read(node["indptr"], slash=slash),
-                )
-            )
-        elif type_str == "csr_matrix":
-            if sparse is None:
-                raise RuntimeError("scipy must be installed to read this data")
-            data = sparse.csr_matrix(
+            klass = getattr(sparse, type_str)
+            shape = None
+            if "shape" in node:  # backward compat with old versions that didn't write
+                shape = _triage_read(node["shape"], slash=slash)
+            data = klass(
                 (
                     _triage_read(node["data"], slash=slash),
                     _triage_read(node["indices"], slash=slash),
                     _triage_read(node["indptr"], slash=slash),
                 ),
-                shape=_triage_read(node["shape"]),
+                shape=shape,
             )
         elif type_str in ["pd_dataframe", "pd_series"]:
             from pandas import HDFStore, read_hdf
