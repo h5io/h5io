@@ -9,12 +9,10 @@ import importlib
 import inspect
 import json
 import sys
-import tempfile
 from inspect import isclass
 from io import UnsupportedOperation
 from os import path as op
 from pathlib import PurePath
-from shutil import rmtree
 
 import numpy as np
 
@@ -697,29 +695,6 @@ def object_diff(a, b, pre=""):
     else:
         raise RuntimeError(pre + ": unsupported type %s (%s)" % (type(a), a))
     return out
-
-
-class _TempDir(str):
-    """Class for creating and auto-destroying temp dir.
-
-    This is designed to be used with testing modules. Instances should be
-    defined inside test functions. Instances defined at module level can not
-    guarantee proper destruction of the temporary directory.
-
-    When used at module level, the current use of the __del__() method for
-    cleanup can fail because the rmtree function may be cleaned up before this
-    object (an alternative could be using the atexit module instead).
-    """
-
-    def __new__(self):
-        new = str.__new__(self, tempfile.mkdtemp())
-        return new
-
-    def __init__(self):
-        self._path = self.__str__()
-
-    def __del__(self):
-        rmtree(self._path, ignore_errors=True)
 
 
 def _list_file_contents(h5file):
