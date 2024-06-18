@@ -36,7 +36,8 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
       - run: pip install scipy pandas pytest pytest-cov -e .
-      - run: pip install tables  # segfaults on macOS sometimes
+      # Pin NumPy for https://github.com/PyTables/PyTables/issues/1083
+      - run: pip install tables "numpy<2"  # segfaults on macOS sometimes
         if: matrix.os != 'macos-latest'
       - run: pytest -v h5io
       - uses: codecov/codecov-action@v4
