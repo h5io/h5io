@@ -41,7 +41,7 @@ jobs:
       # Have to wait for https://github.com/scipy/scipy/pull/21000 for SciPy
       - run: pip install scipy pandas pytest pytest-cov -e .
         if: matrix.python != '3.13'
-      - run: pip install "numpy>=2" --only-binary="numpy" --extra-index-url "https://pypi.anaconda.org/scientific-python-nightly-wheels/simple" pandas pytest pytest-cov -e .
+      - run: pip install "numpy>=2.1.0.dev0" --only-binary="numpy" --extra-index-url "https://pypi.anaconda.org/scientific-python-nightly-wheels/simple" pandas pytest pytest-cov -e .
         if: matrix.python == '3.13'
       # Pin NumPy for https://github.com/PyTables/PyTables/issues/1083
       - run: pip install tables "numpy<2"  # segfaults on macOS sometimes
