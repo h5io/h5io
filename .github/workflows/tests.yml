@@ -25,6 +25,8 @@ jobs:
       matrix:
         include:
           - os: ubuntu-latest
+            python: '3.13'
+          - os: ubuntu-latest
             python: '3.12'
           - os: macos-latest
             python: '3.10'
@@ -38,6 +40,8 @@ jobs:
       - run: pip install scipy pandas pytest pytest-cov -e .
       # Pin NumPy for https://github.com/PyTables/PyTables/issues/1083
       - run: pip install tables "numpy<2"  # segfaults on macOS sometimes
-        if: matrix.os != 'macos-latest'
+        if: matrix.os != 'macos-latest' && matrix.python != '3.13'
+      - run: pip install "numpy>=2" --only-binary="numpy" --extra-index-url "https://pypi.anaconda.org/scientific-python-nightly-wheels/simple"
+        if: matrix.python == '3.13'
       - run: pytest -v h5io
       - uses: codecov/codecov-action@v4
