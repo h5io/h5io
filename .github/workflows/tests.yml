@@ -42,7 +42,7 @@ jobs:
       - run: pip install scipy pandas
         if: matrix.python != '3.13'
       # This will take a while on 3.13 because of https://github.com/h5py/hdf5-manylinux/issues/11
-      - run: sudo apt install libdf5-dev && pip install "numpy>=2.1.0.dev0" h5py --only-binary="numpy" --extra-index-url "https://pypi.anaconda.org/scientific-python-nightly-wheels/simple"
+      - run: sudo apt install libhdf5-dev && pip install "numpy>=2.1.0.dev0" h5py --only-binary="numpy" --extra-index-url "https://pypi.anaconda.org/scientific-python-nightly-wheels/simple"
         if: matrix.python == '3.13'
       # Pin NumPy for https://github.com/PyTables/PyTables/issues/1083
       - run: pip install tables "numpy<2"  # segfaults on macOS sometimes
