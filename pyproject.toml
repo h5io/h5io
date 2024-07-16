@@ -1,3 +1,36 @@
+[build-system]
+requires = ["setuptools>=64", "setuptools_scm>=8"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "h5io"
+dynamic = ["version"]
+requires-python = ">=3.8"
+maintainers = [{name = "Eric Larson", email = "larson.eric.d@gmail.com"}]
+description = """Python Objects Onto HDF5"""
+license = {text = "BSD (3-clause)"}
+readme = {file = "README.rst", content-type = "text/x-rst"}
+keywords = ["hdf5", "io", "data", "h5py", "numpy"]
+classifiers = [
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved",
+    "Programming Language :: Python",
+    "Topic :: Software Development",
+    "Topic :: Scientific/Engineering",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX",
+    "Operating System :: Unix",
+    "Operating System :: MacOS",
+]
+dependencies = ["numpy", "h5py"]
+urls = { "Homepage" = "http://github.com/h5ioh5io" }
+
+[tool.setuptools]
+packages = ["h5io", "h5io.tests"]
+
+[tool.setuptools_scm]
+
 [tool.pytest.ini_options]
 addopts = """--durations=20 --doctest-modules -ra --cov-report= --tb=short \
     --cov-branch --doctest-ignore-import-errors --junit-xml=junit-results.xml \
