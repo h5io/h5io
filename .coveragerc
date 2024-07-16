@@ -1,6 +1,3 @@
 [run]
 branch = True
 source = h5io
-omit =
-    */setup.py
-    */_version.py

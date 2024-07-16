@@ -1,4 +1,6 @@
-"""Python Objects Onto HDF5"""
+"""Python Objects Onto HDF5."""
+
+from importlib.metadata import version, PackageNotFoundError
 
 from ._h5io import (
     read_hdf5,
@@ -6,4 +8,10 @@ from ._h5io import (
     object_diff,
     list_file_contents,
 )  # noqa, analysis:ignore
-from ._version import __version__
+
+try:
+    __version__ = version("h5io")
+except PackageNotFoundError:
+    # package is not installed
+    pass
+del version, PackageNotFoundError

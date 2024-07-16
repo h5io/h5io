@@ -87,7 +87,7 @@ def write_hdf5(
     data : object
         Object to write. Can be of any of these types:
 
-            {ndarray, dict, list, tuple, int, float, str, datetime, timezone}
+            {ndarray, dict, list, tuple, int, float, str, datetime, date, timezone}
 
         Note that dict objects must only have ``str`` keys. It is recommended
         to use ndarrays where possible, as it is handled most efficiently.
@@ -257,6 +257,10 @@ def _triage_write(
         _create_titled_dataset(root, key, title, np.atleast_1d(value))
     elif isinstance(value, datetime.datetime):
         title = "datetime"
+        value = np.frombuffer(value.isoformat().encode("utf-8"), np.uint8)
+        _create_titled_dataset(root, key, title, value)
+    elif isinstance(value, datetime.date):
+        title = "date"
         value = np.frombuffer(value.isoformat().encode("utf-8"), np.uint8)
         _create_titled_dataset(root, key, title, value)
     elif isinstance(value, datetime.timezone):
@@ -579,6 +583,9 @@ def _triage_read(node, slash="ignore"):
     elif type_str == "datetime":
         data = str(np.array(node).tobytes().decode("utf-8"))
         data = datetime.datetime.fromisoformat(data)
+    elif type_str == "date":
+        data = str(np.array(node).tobytes().decode("utf-8"))
+        data = datetime.date.fromisoformat(data)
     elif type_str == "timezone":
         data = eval(
             str(np.array(node).tobytes().decode("utf-8")), {"datetime": datetime}

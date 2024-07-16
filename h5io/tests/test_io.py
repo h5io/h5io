@@ -244,7 +244,7 @@ class _XT(datetime.tzinfo):
 
 
 def test_datetime(tmp_path):
-    """Test datetime.datetime support."""
+    """Test datetime.datetime and datetime.date support."""
     fname = tmp_path / "test.hdf5"
     # Naive
     y, m, d, h, m, s, mu = range(1, 8)
@@ -278,6 +278,11 @@ def test_datetime(tmp_path):
         v1 = getattr(dt2.tzinfo, key)(None)
         v2 = getattr(dt.tzinfo, key)(None)
         assert v1 == v2
+    date = datetime.date(2000, 1, 2)
+    write_hdf5(fname, date, overwrite=True)
+    date2 = read_hdf5(fname)
+    assert isinstance(date2, datetime.date)
+    assert date == date2
 
 
 @pytest.mark.parametrize("name", (None, "foo"))
