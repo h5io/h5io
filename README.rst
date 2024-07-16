@@ -34,20 +34,11 @@ Install h5io
 As any Python packages, to install h5io, go in the source code directory
 and do::
 
-    python setup.py install
-
-or if you don't have admin access to your python setup (permission denied
-when install) use::
-
-    python setup.py install --user
+    pip install -e .
 
 You can also install the latest release version with pip::
 
     pip install h5io --upgrade
-
-or for the latest development version (the most up to date)::
-
-    pip install -e git+https://github.com/h5io/h5io#egg=h5io-dev --user
 
 Dependencies
 ^^^^^^^^^^^^
