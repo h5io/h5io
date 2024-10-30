@@ -16,12 +16,12 @@ permissions:
 jobs:
   pytest:
     name: '${{ matrix.os }} / ${{ matrix.python }}'
-    continue-on-error: true
     runs-on: ${{ matrix.os }}
     defaults:
       run:
         shell: bash -e {0}
     strategy:
+      fail-fast: false
       matrix:
         include:
           - os: ubuntu-latest
@@ -41,3 +41,4 @@ jobs:
         if: matrix.os != 'macos-latest'
       - run: pytest -v h5io
       - uses: codecov/codecov-action@v4
+        if: success() || failure()
