@@ -40,5 +40,5 @@ jobs:
       - run: pip install tables "numpy<2"  # segfaults on macOS sometimes
         if: matrix.os != 'macos-latest'
       - run: pytest -v h5io
-      - uses: codecov/codecov-action@v4
+      - uses: codecov/codecov-action@v5
         if: success() || failure()
