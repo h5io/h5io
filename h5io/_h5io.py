@@ -197,7 +197,7 @@ def _triage_write(
     if key != title and "/" in key:
         if slash == "error":
             raise ValueError(
-                'Found a key with "/", ' "this is not allowed if slash == error"
+                'Found a key with "/", this is not allowed if slash == error'
             )
         elif slash == "replace":
             # Auto-replace keys with proper values
@@ -571,7 +571,7 @@ def _triage_read(node, slash="ignore"):
                 },
             )
         else:
-            raise NotImplementedError("Unknown group type: {0}" "".format(type_str))
+            raise NotImplementedError("Unknown group type: {0}".format(type_str))
     elif type_str == "ndarray":
         data = np.array(node)
     elif type_str == "void":
@@ -678,27 +678,23 @@ def object_diff(a, b, pre=""):
         # sparsity and sparse type of b vs a already checked above by type()
         if b.shape != a.shape:
             out += pre + (
-                " sparse matrix a and b shape mismatch"
-                "(%s vs %s)" % (a.shape, b.shape)
+                " sparse matrix a and b shape mismatch(%s vs %s)" % (a.shape, b.shape)
             )
         else:
             c = a - b
             c.eliminate_zeros()
             if c.nnz > 0:
-                out += pre + (" sparse matrix a and b differ on %s " "elements" % c.nnz)
+                out += pre + (" sparse matrix a and b differ on %s elements" % c.nnz)
     elif isinstance(a, (DataFrame, Series)):
         if b.shape != a.shape:
             out += pre + (
-                " pandas values a and b shape mismatch"
-                "(%s vs %s)" % (a.shape, b.shape)
+                " pandas values a and b shape mismatch(%s vs %s)" % (a.shape, b.shape)
             )
         else:
             c = a.values - b.values
             nzeros = np.sum(c != 0)
             if nzeros > 0:
-                out += pre + (
-                    " pandas values a and b differ on %s " "elements" % nzeros
-                )
+                out += pre + (" pandas values a and b differ on %s elements" % nzeros)
     else:
         raise RuntimeError(pre + ": unsupported type %s (%s)" % (type(a), a))
     return out
@@ -785,7 +781,7 @@ def _check_keys_in_dict(obj, slash="error"):
             key_prev = key
             if slash == "error":
                 raise ValueError(
-                    'Found a key with "/", ' "this is not allowed if slash == error"
+                    'Found a key with "/", this is not allowed if slash == error'
                 )
             elif slash == "replace":
                 # Auto-replace keys with proper values
