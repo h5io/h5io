@@ -76,7 +76,7 @@ def _create_pandas_dataset(fname, root, key, title, data):
                 fletcher32: bool = False,
                 **kwargs,
             ) -> None:
-                self._path = stringify_path(fname.filename)
+                self._path = stringify_path(str(fname.filename))
                 if mode is None:
                     mode = "a"
                 self._mode = mode
