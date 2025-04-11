@@ -65,10 +65,10 @@ def _create_pandas_dataset(fname, root, key, title, data):
     rootpath = "/".join([root, key])
     if isinstance(fname, h5py.File):
         # pandas requires full control over the HDF5 file.
-        # The HDF5 file is closed and re-opened. 
+        # The HDF5 file is closed and re-opened.
         file_name = fname.filename
         fname.close()
-        # handover control to pandas to write dataset 
+        # handover control to pandas to write dataset
         data.to_hdf(file_name, key=rootpath)
         # Re-open HDF5 file - requires access to internal variable _id
         fname._id = h5py.File(name=file_name, mode="a")._id
