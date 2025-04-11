@@ -111,7 +111,7 @@ def test_hdf5_with_open_file(tmp_path):
         i=sr,
         j="hi",
     )
-    with h5py.File(str(tmp_path / "test.hdf5"), "a") as test_file:
+    with h5py.File(str(tmp_path / "test_open.hdf5"), "a") as test_file:
         write_hdf5(test_file, 1)
         assert_equal(read_hdf5(test_file), 1)
         pytest.raises(IOError, write_hdf5, test_file, x)  # file exists
