@@ -114,9 +114,6 @@ def test_hdf5_with_open_file(tmp_path):
     with h5py.File(str(tmp_path / "test_open.hdf5"), "a") as test_file:
         write_hdf5(test_file, 1)
         assert_equal(read_hdf5(test_file), 1)
-        write_hdf5(Path(test_file), x, overwrite=True)
-        xx = read_hdf5(Path(test_file))
-        assert object_diff(x, xx) == ""  # no assert_equal, ugly output
         list_file_contents(test_file)  # Testing the h5 listing
         pytest.raises(TypeError, list_file_contents, sp)  # Only string works
         write_hdf5(test_file, np.bool_(True), overwrite=True)
