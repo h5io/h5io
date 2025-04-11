@@ -92,6 +92,73 @@ def test_hdf5(tmp_path):
     assert_equal(read_hdf5(test_file, title="second"), 5)
 
 
+def test_hdf5_with_open_file(tmp_path):
+    """Test HDF5 IO."""
+    pytest.importorskip("tables")
+    sp = np.eye(3) if sparse is None else sparse.eye(3, 3, format="csc")
+    sp_csr = np.eye(3) if sparse is None else sparse.eye(3, 3, format="csr")
+    df = np.eye(3) if isinstance(DataFrame, type(None)) else DataFrame(np.eye(3))
+    sr = np.eye(3) if isinstance(Series, type(None)) else Series(np.random.randn(3))
+    sp[2, 2] = 2
+    sp_csr[2, 2] = 2
+    x = dict(
+        a=dict(b=np.zeros(3)),
+        c=np.zeros(2, np.complex128),
+        d=[dict(e=(1, -2.0, "hello", "goodbyeu\u2764")), None],
+        f=sp,
+        g=dict(dfa=df, srb=sr),
+        h=sp_csr,
+        i=sr,
+        j="hi",
+    )
+    with h5py.open(str(tmp_path / "test.hdf5"), "a") as test_file:
+        write_hdf5(test_file, 1)
+        assert_equal(read_hdf5(test_file), 1)
+        pytest.raises(IOError, write_hdf5, test_file, x)  # file exists
+        write_hdf5(Path(test_file), x, overwrite=True)
+        pytest.raises(IOError, read_hdf5, test_file + "FOO")  # not found
+        xx = read_hdf5(Path(test_file))
+        assert object_diff(x, xx) == ""  # no assert_equal, ugly output
+        list_file_contents(test_file)  # Testing the h5 listing
+        pytest.raises(TypeError, list_file_contents, sp)  # Only string works
+        write_hdf5(test_file, np.bool_(True), overwrite=True)
+        assert_equal(read_hdf5(test_file), np.bool_(True))
+
+        # bad title
+        pytest.raises(ValueError, read_hdf5, test_file, title="nonexist")
+        pytest.raises(ValueError, write_hdf5, test_file, x, overwrite=True, title=1)
+        pytest.raises(ValueError, read_hdf5, test_file, title=1)
+        # unsupported objects
+        pytest.raises(TypeError, write_hdf5, test_file, {1: "foo"}, overwrite=True)
+        # special_chars
+        spec_dict = {"first/second": "third"}
+        pytest.raises(ValueError, write_hdf5, test_file, spec_dict, overwrite=True)
+        pytest.raises(
+            ValueError, write_hdf5, test_file, spec_dict, overwrite=True, slash="brains"
+        )
+        write_hdf5(test_file, spec_dict, overwrite=True, slash="replace")
+        assert_equal(read_hdf5(test_file, slash="replace").keys(), spec_dict.keys())
+        in_keys = list(read_hdf5(test_file, slash="ignore").keys())
+        assert "{FWDSLASH}" in in_keys[0]
+        pytest.raises(ValueError, read_hdf5, test_file, slash="brains")
+        # Testing that title slashes aren't replaced
+        write_hdf5(test_file, spec_dict, title="one/two", overwrite=True, slash="replace")
+        assert_equal(
+            read_hdf5(test_file, title="one/two", slash="replace").keys(), spec_dict.keys()
+        )
+
+        write_hdf5(test_file, 1, title="first", overwrite=True)
+        write_hdf5(test_file, 2, title="second", overwrite="update")
+        assert_equal(read_hdf5(test_file, title="first"), 1)
+        assert_equal(read_hdf5(test_file, title="second"), 2)
+        pytest.raises(IOError, write_hdf5, test_file, 3, title="second")
+        write_hdf5(test_file, 3, title="second", overwrite="update")
+        assert_equal(read_hdf5(test_file, title="second"), 3)
+
+        write_hdf5(test_file, 5, title="second", overwrite="update", compression=5)
+        assert_equal(read_hdf5(test_file, title="second"), 5)
+
+
 def test_h5_file_object(tmp_path):
     """Test file object support."""
     test_file_path = tmp_path / "test1.hdf5"
