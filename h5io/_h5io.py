@@ -64,30 +64,10 @@ def _create_pandas_dataset(fname, root, key, title, data):
     h5py = _check_h5py()
     rootpath = "/".join([root, key])
     if isinstance(fname, h5py.File):
-        from pandas.io.pytables import HDFStore, stringify_path
-
-        class FakeHDFStore(HDFStore):
-            def __init__(
-                self,
-                fname,
-                mode: str = "a",
-                complevel: int | None = None,
-                complib=None,
-                fletcher32: bool = False,
-                **kwargs,
-            ) -> None:
-                self._path = stringify_path(str(fname.filename))
-                if mode is None:
-                    mode = "a"
-                self._mode = mode
-                self._handle = fname
-                self._complevel = complevel if complevel else 0
-                self._complib = complib
-                self._fletcher32 = fletcher32
-                self._filters = None
-
-        data.to_hdf(FakeHDFStore(fname=fname), key=rootpath)
-        fname[rootpath].attrs["TITLE"] = "pd_dataframe"
+        file_name = fname.filename
+        fname.close()
+        data.to_hdf(file_name, key=rootpath)
+        fname = h5py.File(name=fname, mode="a")
     else:
         data.to_hdf(fname, key=rootpath)
         with h5py.File(fname, mode="a") as fid:
