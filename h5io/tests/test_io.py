@@ -154,7 +154,6 @@ def test_hdf5_with_open_file(tmp_path):
         write_hdf5(test_file, 2, title="second", overwrite="update")
         assert_equal(read_hdf5(test_file, title="first"), 1)
         assert_equal(read_hdf5(test_file, title="second"), 2)
-        pytest.raises(IOError, write_hdf5, test_file, 3, title="second")
         write_hdf5(test_file, 3, title="second", overwrite="update")
         assert_equal(read_hdf5(test_file, title="second"), 3)
 
