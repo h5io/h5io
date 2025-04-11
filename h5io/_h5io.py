@@ -67,7 +67,7 @@ def _create_pandas_dataset(fname, root, key, title, data):
         file_name = fname.filename
         fname.close()
         data.to_hdf(file_name, key=rootpath)
-        fname = h5py.File(name=fname, mode="a")
+        fname = h5py.File(name=file_name, mode="a")
     else:
         data.to_hdf(fname, key=rootpath)
         with h5py.File(fname, mode="a") as fid:
