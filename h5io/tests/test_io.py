@@ -142,9 +142,12 @@ def test_hdf5_with_open_file(tmp_path):
         assert "{FWDSLASH}" in in_keys[0]
         pytest.raises(ValueError, read_hdf5, test_file, slash="brains")
         # Testing that title slashes aren't replaced
-        write_hdf5(test_file, spec_dict, title="one/two", overwrite=True, slash="replace")
+        write_hdf5(
+            test_file, spec_dict, title="one/two", overwrite=True, slash="replace"
+        )
         assert_equal(
-            read_hdf5(test_file, title="one/two", slash="replace").keys(), spec_dict.keys()
+            read_hdf5(test_file, title="one/two", slash="replace").keys(),
+            spec_dict.keys(),
         )
 
         write_hdf5(test_file, 1, title="first", overwrite=True)
