@@ -63,9 +63,21 @@ def _create_titled_dataset(root, key, title, data, comp_kw=None):
 def _create_pandas_dataset(fname, root, key, title, data):
     h5py = _check_h5py()
     rootpath = "/".join([root, key])
-    data.to_hdf(fname, key=rootpath)
-    with h5py.File(fname, mode="a") as fid:
-        fid[rootpath].attrs["TITLE"] = "pd_dataframe"
+    if isinstance(fname, h5py.File):
+        # pandas requires full control over the HDF5 file.
+        # The HDF5 file is closed and re-opened.
+        file_name = fname.filename
+        fname.close()
+        # handover control to pandas to write dataset
+        data.to_hdf(file_name, key=rootpath)
+        # Re-open HDF5 file - requires access to internal variable _id
+        fname._id = h5py.File(name=file_name, mode="a").id
+        # Continue by setting the TITLE attribute
+        fname[rootpath].attrs["TITLE"] = "pd_dataframe"
+    else:
+        data.to_hdf(fname, key=rootpath)
+        with h5py.File(fname, mode="a") as fid:
+            fid[rootpath].attrs["TITLE"] = "pd_dataframe"
 
 
 def write_hdf5(
