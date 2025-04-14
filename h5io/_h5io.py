@@ -71,7 +71,7 @@ def _create_pandas_dataset(fname, root, key, title, data):
         # handover control to pandas to write dataset
         data.to_hdf(file_name, key=rootpath)
         # Re-open HDF5 file - requires access to internal variable _id
-        fname._id = h5py.File(name=file_name, mode="a")._id
+        fname._id = h5py.File(name=file_name, mode="a").id
         # Continue by setting the TITLE attribute
         fname[rootpath].attrs["TITLE"] = "pd_dataframe"
     else:
