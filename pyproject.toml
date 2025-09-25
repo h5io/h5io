@@ -24,7 +24,7 @@ classifiers = [
     "Operating System :: MacOS",
 ]
 dependencies = ["numpy", "h5py"]
-urls = { "Homepage" = "http://github.com/h5ioh5io" }
+urls = { "Homepage" = "https://github.com/h5io/h5io" }
 
 [tool.setuptools]
 packages = ["h5io", "h5io.tests"]
