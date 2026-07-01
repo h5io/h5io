@@ -31,11 +31,11 @@ jobs:
           - os: windows-latest
             python: '3.8'
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python }}
       - run: pip install scipy pandas pytest pytest-cov tables -e .
       - run: pytest -v h5io
-      - uses: codecov/codecov-action@v6
+      - uses: codecov/codecov-action@v7
         if: success() || failure()
