@@ -60,6 +60,25 @@ def _create_titled_dataset(root, key, title, data, comp_kw=None):
     return out
 
 
+def _string_dtype():
+    """Return NumPy's variable-width string dtype class, or None if too old."""
+    return getattr(getattr(np, "dtypes", None), "StringDType", None)
+
+
+def _create_str_dataset(root, key, data, comp_kw=None):
+    """Create a variable-length UTF-8 string dataset from a StringDType array."""
+    h5py = _check_h5py()
+    # gzip requires a chunked (hence non-scalar, non-empty) dataset
+    comp_kw = dict(comp_kw) if (comp_kw and data.ndim and data.size) else dict()
+    out = root.create_dataset(
+        key, shape=data.shape, dtype=h5py.string_dtype(encoding="utf-8"), **comp_kw
+    )
+    if data.size:
+        out[...] = data.astype(object)
+    out.attrs["TITLE"] = "ndarray_str"
+    return out
+
+
 def _create_pandas_dataset(fname, root, key, title, data):
     h5py = _check_h5py()
     rootpath = "/".join([root, key])
@@ -290,6 +309,10 @@ def _triage_write(
             value = np.frombuffer(value.encode("ASCII"), np.uint8)
             title = "ascii"
         _create_titled_dataset(root, key, title, value, comp_kw)
+    elif isinstance(value, np.ndarray) and value.dtype.kind == "T":
+        # NumPy >= 2.0 variable-width strings; store as variable-length UTF-8
+        # strings so that the round trip preserves the dtype and the contents
+        _create_str_dataset(root, key, value, comp_kw)
     elif isinstance(value, np.ndarray):
         if not (
             value.dtype == np.dtype("object")
@@ -586,6 +609,14 @@ def _triage_read(node, slash="ignore"):
             raise NotImplementedError("Unknown group type: {0}".format(type_str))
     elif type_str == "ndarray":
         data = np.array(node)
+    elif type_str == "ndarray_str":
+        string_dtype = _string_dtype()
+        if string_dtype is None:
+            raise RuntimeError(
+                "NumPy >= 2.0 is required to read variable-width string arrays"
+            )
+        # node.asstr()[()] gives str (0d) or an object array of str
+        data = np.asarray(node.asstr()[()], dtype=string_dtype())
     elif type_str == "void":
         # Based on https://docs.h5py.org/en/stable/strings.html#how-to-store-raw-binary-data
         data = np.void(node)
@@ -728,7 +759,7 @@ def _list_file_contents(h5file):
     for key, data in h5file.items():
         type_str = data.attrs["TITLE"]
         str_format = "%%-%ss" % n_space
-        if type_str == "ndarray":
+        if type_str in ("ndarray", "ndarray_str"):
             desc = "Shape: %s"
             desc_val = data.shape
         elif type_str in ["pd_dataframe", "pd_series"]:

@@ -294,6 +294,71 @@ def test_multi_dim_array(tmp_path):
     )
 
 
+_STRING_DTYPE = getattr(getattr(np, "dtypes", None), "StringDType", None)
+requires_string_dtype = pytest.mark.skipif(
+    _STRING_DTYPE is None, reason="NumPy >= 2.0 required for StringDType"
+)
+# empty, ASCII, accented, CJK, emoji, and a much longer string
+_STRINGS = ["", "a", "é", "日本", "\U0001f9e0", "x" * 200]
+
+
+@requires_string_dtype
+@pytest.mark.parametrize("compression", (0, 4))
+@pytest.mark.parametrize("shape", ((), (0,), (6,), (2, 3)))
+def test_variable_width_strings(tmp_path, shape, compression):
+    """Test that variable-width (StringDType) arrays round-trip faithfully."""
+    dtype = _STRING_DTYPE()
+    n_values = int(np.prod(shape))
+    value = np.array(_STRINGS[:n_values], dtype=dtype).reshape(shape)
+    test_file = tmp_path / "test.hdf5"
+    write_hdf5(test_file, value, overwrite=True, compression=compression)
+    got = read_hdf5(test_file)
+    assert got.dtype == dtype
+    assert got.shape == value.shape
+    assert_array_equal(got, value)
+    # in-place assignment of a longer string must not truncate
+    if n_values:
+        got.reshape(-1)[0] = "y" * 500
+        assert got.reshape(-1)[0] == "y" * 500
+    # overwrite="update" path
+    write_hdf5(test_file, value, title="second", overwrite="update")
+    assert_array_equal(read_hdf5(test_file, title="second"), value)
+
+
+@requires_string_dtype
+@pytest.mark.parametrize("use_json", (False, True))
+def test_variable_width_strings_nested(tmp_path, use_json):
+    """Test StringDType arrays nested in containers alongside other types."""
+    dtype = _STRING_DTYPE()
+    arr = np.array(_STRINGS, dtype=dtype)
+    x = dict(a=arr, b=[arr, np.arange(3), "hi"], c=dict(d=(arr, None)))
+    test_file = tmp_path / "test.hdf5"
+    write_hdf5(test_file, x, overwrite=True, slash="replace", use_json=use_json)
+    xx = read_hdf5(test_file, slash="replace")
+    assert object_diff(x, xx) == ""
+    list_file_contents(str(test_file))
+    for got in (xx["a"], xx["b"][0], xx["c"]["d"][0]):
+        assert got.dtype == dtype
+        assert_array_equal(got, arr)
+
+
+def test_string_array_legacy_dtypes(tmp_path):
+    """Test that non-StringDType strings keep their previous behavior."""
+    test_file = tmp_path / "test.hdf5"
+    # bytes ("S") arrays round-trip unchanged
+    value = np.array([b"aa", b"bbb"], dtype="S8")
+    write_hdf5(test_file, value, overwrite=True)
+    got = read_hdf5(test_file)
+    assert got.dtype == value.dtype
+    assert_array_equal(got, value)
+    # fixed-width unicode ("<U") is still not writable by h5py
+    with pytest.raises(TypeError, match="[Nn]o conversion path"):
+        write_hdf5(test_file, np.array(["aa"], dtype="<U8"), overwrite=True)
+    # plain str is unaffected
+    write_hdf5(test_file, "héllo", overwrite=True)
+    assert read_hdf5(test_file) == "héllo"
+
+
 class _XT(datetime.tzinfo):
     def utcoffset(self, dt):
         return datetime.timedelta(hours=-5)  # Eastern on standard time
