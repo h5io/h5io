@@ -693,11 +693,12 @@ def test_pathlib(tmp_path, use_json, use_state):
     write_hdf5(test_file, data, use_json=use_json, use_state=use_state)
     assert object_diff(read_hdf5(test_file), data) == ""
     # A concrete path from another OS falls back to the matching pure class
-    write_hdf5(test_file, Path("a", "b"), overwrite=True)
     other = "PosixPath" if sys.platform == "win32" else "WindowsPath"
-    with h5py.File(test_file, "a") as fid:
+    other_path = getattr(pathlib, f"Pure{other}")("a", "b")
+    write_hdf5(test_file, other_path, overwrite=True)
+    with h5py.File(test_file, "a") as fid:  # mimic writing on the other OS
         fid["h5io"].attrs["TITLE"] = f"path_{other}"
-    assert read_hdf5(test_file) == getattr(pathlib, f"Pure{other}")("a", "b")
+    assert read_hdf5(test_file) == other_path
 
 
 class _ReadOnlyBase:
