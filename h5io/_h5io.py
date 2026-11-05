@@ -3,6 +3,7 @@
 #
 # License: BSD (3-clause)
 
+import ast
 import copyreg
 import datetime
 import importlib
@@ -150,6 +151,12 @@ def write_hdf5(
         saved is in the module `__main__`, e.g. when working inside a jupyter notebook.
         In this case, care should be taken that any relevant classes are re-declared
         prior to loading. (Requires python >=3.11)
+
+    Notes
+    -----
+    Classes, objects written with ``use_state=True``, and pandas objects can
+    only be read back with ``read_hdf5(..., allow_pickle=True)``, because
+    reading them can execute arbitrary code.
     """
     h5py = _check_h5py()
     if use_state and sys.version_info < (3, 11):
@@ -494,7 +501,7 @@ def _triage_write(
 # READING
 
 
-def read_hdf5(fname, title="h5io", slash="ignore"):
+def read_hdf5(fname, title="h5io", slash="ignore", *, allow_pickle=False):
     """Read python object from HDF5 format using h5py.
 
     Parameters
@@ -508,6 +515,14 @@ def read_hdf5(fname, title="h5io", slash="ignore"):
         Whether to replace the string {FWDSLASH} with the value /. This does
         not apply to the top level name (title). If 'ignore', nothing will be
         replaced.
+    allow_pickle : bool
+        Whether to allow loading classes, objects written with
+        ``use_state=True``, and pandas objects. These require importing
+        modules and reconstructing objects named in the file (and, for pandas,
+        unpickling), which can execute arbitrary code. Only set this to True
+        for files from trusted sources.
+
+        .. versionadded:: 0.2.6
 
     Returns
     -------
@@ -532,7 +547,7 @@ def read_hdf5(fname, title="h5io", slash="ignore"):
         if isinstance(fid[title], h5py.Group):
             if "TITLE" not in fid[title].attrs:
                 raise ValueError('no "%s" data found' % title)
-        return _triage_read(fid[title], slash=slash)
+        return _triage_read(fid[title], slash=slash, allow_pickle=allow_pickle)
 
     if isinstance(fname, h5py.File):
         return _read(fname)
@@ -541,7 +556,7 @@ def read_hdf5(fname, title="h5io", slash="ignore"):
             return _read(fid)
 
 
-def _triage_read(node, slash="ignore"):
+def _triage_read(node, slash="ignore", allow_pickle=False):
     if slash not in ["ignore", "replace"]:
         raise ValueError("slash must be one of 'replace', 'ignore'")
     h5py = _check_h5py()
@@ -556,7 +571,9 @@ def _triage_read(node, slash="ignore"):
                 if slash == "replace":
                     for key_spec, val_spec in special_chars.items():
                         key = key.replace(key_spec, val_spec)
-                data[key[4:]] = _triage_read(subnode, slash=slash)
+                data[key[4:]] = _triage_read(
+                    subnode, slash=slash, allow_pickle=allow_pickle
+                )
         elif type_str in ["list", "tuple"]:
             data = list()
             ii = 0
@@ -564,7 +581,9 @@ def _triage_read(node, slash="ignore"):
                 subnode = node.get("idx_{0}".format(ii), None)
                 if subnode is None:
                     break
-                data.append(_triage_read(subnode, slash=slash))
+                data.append(
+                    _triage_read(subnode, slash=slash, allow_pickle=allow_pickle)
+                )
                 ii += 1
             assert len(data) == ii
             data = tuple(data) if type_str == "tuple" else data
@@ -575,16 +594,23 @@ def _triage_read(node, slash="ignore"):
             klass = getattr(sparse, type_str)
             shape = None
             if "shape" in node:  # backward compat with old versions that didn't write
-                shape = _triage_read(node["shape"], slash=slash)
+                shape = _triage_read(
+                    node["shape"], slash=slash, allow_pickle=allow_pickle
+                )
             data = klass(
                 (
-                    _triage_read(node["data"], slash=slash),
-                    _triage_read(node["indices"], slash=slash),
-                    _triage_read(node["indptr"], slash=slash),
+                    _triage_read(node["data"], slash=slash, allow_pickle=allow_pickle),
+                    _triage_read(
+                        node["indices"], slash=slash, allow_pickle=allow_pickle
+                    ),
+                    _triage_read(
+                        node["indptr"], slash=slash, allow_pickle=allow_pickle
+                    ),
                 ),
                 shape=shape,
             )
         elif type_str in ["pd_dataframe", "pd_series"]:
+            _check_allow_pickle(allow_pickle, "pandas object", type_str)
             from pandas import HDFStore, read_hdf
 
             rootname = node.name
@@ -592,17 +618,23 @@ def _triage_read(node, slash="ignore"):
             with HDFStore(filename, "r") as tmpf:
                 data = read_hdf(tmpf, rootname)
         elif type_str == "multiarray":
-            ma_index = _triage_read(node.get("index", None), slash=slash)
-            ma_data = _triage_read(node.get("data", None), slash=slash)
+            ma_index = _triage_read(
+                node.get("index", None), slash=slash, allow_pickle=allow_pickle
+            )
+            ma_data = _triage_read(
+                node.get("data", None), slash=slash, allow_pickle=allow_pickle
+            )
             data = multiarray_load(ma_index, ma_data)
         elif sys.version_info >= (3, 11):
             # Requires python >= 3.11 as python 3.11 added the default implementation
             # of the __getstate__() method in the object class.
             # Based on https://docs.python.org/3/library/pickle.html#object.__getstate__
+            _check_allow_pickle(allow_pickle, "object of type", type_str)
             return _setstate(
                 obj_class=_import_class(class_type=type_str),
                 state_dict={
-                    n: _triage_read(node[n], slash="ignore") for n in list(node.keys())
+                    n: _triage_read(node[n], slash="ignore", allow_pickle=allow_pickle)
+                    for n in list(node.keys())
                 },
             )
         else:
@@ -630,9 +662,7 @@ def _triage_read(node, slash="ignore"):
         data = str(np.array(node).tobytes().decode("utf-8"))
         data = datetime.date.fromisoformat(data)
     elif type_str == "timezone":
-        data = eval(
-            str(np.array(node).tobytes().decode("utf-8")), {"datetime": datetime}
-        )
+        data = _parse_timezone(str(np.array(node).tobytes().decode("utf-8")))
     elif type_str.startswith("np_"):
         np_type = type_str.split("_")[1]
         cast = getattr(np, np_type) if np_type != "bool" else bool
@@ -647,10 +677,85 @@ def _triage_read(node, slash="ignore"):
         data = None
     elif type_str == "class":
         class_str = str(np.array(node).tobytes().decode("utf-8"))
+        _check_allow_pickle(allow_pickle, "class", class_str)
         data = _import_class(class_str)
     else:
         raise TypeError("Unknown node type: {0}".format(type_str))
     return data
+
+
+def _check_allow_pickle(allow_pickle, kind, name):
+    if not allow_pickle:
+        raise ValueError(
+            f"Refusing to load {kind} {repr(name)} because allow_pickle=False. "
+            "Loading it can execute arbitrary code, so only use "
+            "allow_pickle=True for files from trusted sources."
+        )
+
+
+_TIMEDELTA_KEYS = ("days", "seconds", "microseconds")
+
+
+def _parse_timezone(tz_str):
+    """Parse the repr of a datetime.timezone without using eval.
+
+    Only ``datetime.timezone.utc`` and
+    ``datetime.timezone(datetime.timedelta(<ints>)[, <str>])`` are accepted.
+    """
+    err = ValueError(f"Invalid timezone representation: {repr(tz_str)}")
+    try:
+        node = ast.parse(tz_str, mode="eval").body
+    except (SyntaxError, ValueError, RecursionError):
+        raise err from None
+    if _is_dotted_name(node, "datetime.timezone.utc"):
+        return datetime.timezone.utc
+    if not (
+        isinstance(node, ast.Call)
+        and _is_dotted_name(node.func, "datetime.timezone")
+        and not node.keywords
+        and len(node.args) in (1, 2)
+    ):
+        raise err
+    offset = node.args[0]
+    if not (
+        isinstance(offset, ast.Call)
+        and _is_dotted_name(offset.func, "datetime.timedelta")
+        and len(offset.args) <= len(_TIMEDELTA_KEYS)
+        and all(kw.arg in _TIMEDELTA_KEYS for kw in offset.keywords)
+    ):
+        raise err
+    args = [_parse_int(arg, err) for arg in offset.args]
+    kwargs = {kw.arg: _parse_int(kw.value, err) for kw in offset.keywords}
+    tz_args = []
+    if len(node.args) == 2:
+        name = node.args[1]
+        if not (isinstance(name, ast.Constant) and type(name.value) is str):
+            raise err
+        tz_args.append(name.value)
+    try:
+        return datetime.timezone(datetime.timedelta(*args, **kwargs), *tz_args)
+    except (TypeError, ValueError, OverflowError):
+        raise err from None
+
+
+def _is_dotted_name(node, name):
+    *parts, last = name.split(".")
+    if not parts:
+        return isinstance(node, ast.Name) and node.id == last
+    return (
+        isinstance(node, ast.Attribute)
+        and node.attr == last
+        and _is_dotted_name(node.value, ".".join(parts))
+    )
+
+
+def _parse_int(node, err):
+    sign = 1
+    if isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.USub):
+        sign, node = -1, node.operand
+    if not (isinstance(node, ast.Constant) and type(node.value) is int):
+        raise err
+    return sign * node.value
 
 
 # ############################################################################

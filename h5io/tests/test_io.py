@@ -50,7 +50,10 @@ def test_hdf5(tmp_path):
     pytest.raises(IOError, write_hdf5, test_file, x)  # file exists
     write_hdf5(Path(test_file), x, overwrite=True)
     pytest.raises(IOError, read_hdf5, test_file + "FOO")  # not found
-    xx = read_hdf5(Path(test_file))
+    if DataFrame is not None:
+        with pytest.raises(ValueError, match="allow_pickle=False"):
+            read_hdf5(Path(test_file))
+    xx = read_hdf5(Path(test_file), allow_pickle=True)
     assert object_diff(x, xx) == ""  # no assert_equal, ugly output
     list_file_contents(test_file)  # Testing the h5 listing
     pytest.raises(TypeError, list_file_contents, sp)  # Only string works
@@ -428,6 +431,159 @@ def test_timezone(name, tmp_path):
         assert y.tzname(None) == name
 
 
+def _write_raw_node(fname, title, value, nest=False):
+    """Write a node by hand, bypassing write_hdf5 (e.g., to mimic a crafted file)."""
+    with h5py.File(fname, "w") as fid:
+        root = fid
+        if nest:  # put it inside a dict like a legitimate file would
+            root = fid.create_group("h5io")
+            root.attrs["TITLE"] = "dict"
+            key = "key_x"
+        else:
+            key = "h5io"
+        if isinstance(value, str):
+            value = np.frombuffer(value.encode("utf-8"), np.uint8)
+            node = root.create_dataset(key, data=value)
+        else:  # a group
+            node = root.create_group(key)
+        node.attrs["TITLE"] = title
+
+
+@pytest.mark.parametrize(
+    "tz_str, want",
+    [
+        ("datetime.timezone.utc", datetime.timezone.utc),
+        (
+            "datetime.timezone(datetime.timedelta(days=-1, seconds=61200))",
+            datetime.timezone(datetime.timedelta(hours=-7)),
+        ),
+        (
+            "datetime.timezone(datetime.timedelta(seconds=3600, microseconds=5), 'f')",
+            datetime.timezone(datetime.timedelta(seconds=3600, microseconds=5), "f"),
+        ),
+        # Python < 3.7 used positional args in the timedelta repr
+        (
+            "datetime.timezone(datetime.timedelta(-1, 61200), 'foo')",
+            datetime.timezone(datetime.timedelta(hours=-7), "foo"),
+        ),
+    ],
+)
+def test_timezone_legacy_repr(tz_str, want, tmp_path):
+    """Test that timezone reprs written by any version can be read."""
+    fname = tmp_path / "test.hdf5"
+    _write_raw_node(fname, "timezone", tz_str)
+    got = read_hdf5(fname)
+    assert got == want
+    assert got.tzname(None) == want.tzname(None)
+
+
+@pytest.mark.parametrize("nest", (False, True))
+@pytest.mark.parametrize(
+    "tz_str",
+    [
+        "__import__('os').system('echo bad > {marker}')",
+        "open('{marker}', 'w')",
+        "datetime.timezone(datetime.timedelta(seconds=open('{marker}', 'w') and 1))",
+        "datetime.timezone(datetime.timedelta(0), open('{marker}', 'w').name)",
+        "[c for c in ().__class__.__base__.__subclasses__()]",
+        "datetime.timezone.utc.__class__",
+        "datetime.timezone(datetime.timedelta(seconds=1.5))",
+        "datetime.timezone(datetime.timedelta(hours=1))",
+        "datetime.timezone(datetime.timedelta(days=2))",  # out of range
+        "datetime.timezone(datetime.timedelta(0), name='foo')",
+        "datetime.timezone(datetime.timedelta(0), 'foo', 'bar')",
+        "datetime.timezone(datetime.timedelta(0, days=0))",
+        "datetime.timezone(datetime.timedelta(True))",
+        "datetime.timezone(datetime.timedelta(**{{'seconds': 0}}))",
+        "datetime.timezone(datetime.timedelta(-(-1)))",
+        "datetime.timezone(datetime.timedelta(0), f'{{0}}')",
+        "datetime.timezone(datetime.timedelta(0), 'foo' 'bar'.upper())",
+        "7*6",
+        "(",
+        "",
+    ],
+)
+def test_timezone_no_eval(tz_str, nest, tmp_path):
+    """Test that a crafted timezone node is not evaluated."""
+    marker = tmp_path / "marker"
+    fname = tmp_path / "evil.hdf5"
+    _write_raw_node(fname, "timezone", tz_str.format(marker=marker), nest=nest)
+    with pytest.raises(ValueError, match="Invalid timezone representation"):
+        read_hdf5(fname)
+    assert not marker.exists()
+
+
+def test_timezone_poc(tmp_path):
+    """Test the reported PoC (a legitimate file with a patched timezone node)."""
+    marker = tmp_path / "marker"
+    fname = tmp_path / "evil.hdf5"
+    write_hdf5(fname, {"x": datetime.timezone.utc})
+    with h5py.File(fname, "r+") as fid:
+        parent = fid["h5io"]
+        assert parent["key_x"].attrs["TITLE"] == "timezone"
+        del parent["key_x"]
+        payload = f"__import__('os').system('echo bad > {marker}')"
+        node = parent.create_dataset(
+            "key_x", data=np.frombuffer(payload.encode("utf-8"), np.uint8)
+        )
+        node.attrs["TITLE"] = "timezone"
+    with pytest.raises(ValueError, match="Invalid timezone representation"):
+        read_hdf5(fname)
+    assert not marker.exists()
+
+
+@pytest.fixture
+def evil_module(tmp_path, monkeypatch):
+    """Create an importable module that writes a marker file when imported."""
+    name = "_h5io_evil_module"
+    marker = tmp_path / "marker"
+    (tmp_path / f"{name}.py").write_text(
+        f"open({repr(str(marker))}, 'w').close()\n\nclass Thing:\n    pass\n"
+    )
+    monkeypatch.syspath_prepend(str(tmp_path))
+    monkeypatch.delitem(sys.modules, name, raising=False)
+    yield name, marker
+    sys.modules.pop(name, None)
+
+
+@pytest.mark.parametrize("nest", (False, True))
+@pytest.mark.parametrize("kind", ("class", "state"))
+def test_allow_pickle(kind, nest, evil_module, tmp_path):
+    """Test that classes and objects are only imported with allow_pickle=True."""
+    if kind == "state" and sys.version_info < (3, 11):
+        pytest.skip("use_state requires Python 3.11")
+    mod_name, marker = evil_module
+    fname = tmp_path / "evil.hdf5"
+    class_str = f"{mod_name}.Thing"
+    if kind == "class":
+        _write_raw_node(fname, "class", class_str, nest=nest)
+    else:
+        _write_raw_node(fname, class_str, None, nest=nest)
+    with pytest.raises(ValueError, match="allow_pickle=False"):
+        read_hdf5(fname)
+    assert mod_name not in sys.modules
+    assert not marker.exists()
+    # with allow_pickle=True the module is imported (so the code runs)
+    out = read_hdf5(fname, allow_pickle=True)
+    assert marker.exists()
+    if nest:
+        out = out["x"]
+    klass = sys.modules[mod_name].Thing
+    if kind == "class":
+        assert out is klass
+    else:
+        assert isinstance(out, klass)
+
+
+@pytest.mark.parametrize("title", ("pd_dataframe", "pd_series"))
+def test_allow_pickle_pandas(title, tmp_path):
+    """Test that pandas objects are only read with allow_pickle=True."""
+    fname = tmp_path / "evil.hdf5"
+    _write_raw_node(fname, title, None, nest=True)
+    with pytest.raises(ValueError, match="allow_pickle=False"):
+        read_hdf5(fname)
+
+
 class SaveableClass:
     """A toy class to test saving and loading classes."""
 
@@ -450,7 +606,7 @@ def test_class_storage(tmp_path):
         use_json=False,
         use_state=False,
     )
-    loaded_class = read_hdf5(fname=test_file, title="myclass")
+    loaded_class = read_hdf5(fname=test_file, title="myclass", allow_pickle=True)
     assert loaded_class is int
 
     # Std. Lib / importable class
@@ -462,7 +618,7 @@ def test_class_storage(tmp_path):
         use_json=False,
         use_state=False,
     )
-    loaded_class = read_hdf5(fname=test_file, title="myclass")
+    loaded_class = read_hdf5(fname=test_file, title="myclass", allow_pickle=True)
     assert loaded_class is datetime.datetime
 
     # Local custom class
@@ -474,7 +630,7 @@ def test_class_storage(tmp_path):
         use_json=False,
         use_state=False,
     )
-    loaded_class = read_hdf5(fname=test_file, title="myclass")
+    loaded_class = read_hdf5(fname=test_file, title="myclass", allow_pickle=True)
 
     assert loaded_class is SaveableClass
     assert loaded_class.foo() == SaveableClass.foo()
@@ -505,6 +661,7 @@ def test_state_with_numpy_poly1d(tmp_path):
         fname=test_file,
         title="polyfit",
         slash="ignore",
+        allow_pickle=True,
     )
     assert polyfit_obj == polyfit_obj_reload
     write_hdf5(
@@ -519,6 +676,7 @@ def test_state_with_numpy_poly1d(tmp_path):
         fname=test_file,
         title="polyfit_json",
         slash="ignore",
+        allow_pickle=True,
     )
     assert polyfit_obj == polyfit_obj_reload
 
@@ -548,6 +706,7 @@ def test_state_with_pathlib(tmp_path):
         fname=test_file,
         title="pathobj",
         slash="ignore",
+        allow_pickle=True,
     )
     assert path_obj == path_obj_reload
     write_hdf5(
@@ -562,6 +721,7 @@ def test_state_with_pathlib(tmp_path):
         fname=test_file,
         title="pathobj_json",
         slash="ignore",
+        allow_pickle=True,
     )
     assert path_obj == path_obj_reload
 
@@ -597,6 +757,7 @@ def test_state_with_dynamic_class(tmp_path):
         fname=test_file,
         title="myobj",
         slash="ignore",
+        allow_pickle=True,
     )
 
     for nested in [[my_obj], (my_obj,), {"my_obj": my_obj}]:
@@ -700,7 +861,7 @@ def test_state_with_singleton(tmp_path):
         use_state=True,
     )
 
-    reloaded = read_hdf5(fname=test_file)
+    reloaded = read_hdf5(fname=test_file, allow_pickle=True)
     assert reloaded is MY_SINGLETON  # The _exact_ object specified in __reduce__
 
 
