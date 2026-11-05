@@ -22,6 +22,9 @@ _path_like = (str, PurePath)
 special_chars = {"{FWDSLASH}": "/"}
 tab_str = "----"
 
+# Reserved group key used (with use_state=True) to store the constructor arguments
+# of objects whose __reduce__() returns (cls, args)
+_REDUCE_ARGS_KEY = "__h5io_reduce_args__"
 _SPARSE_KINDS = ("csc_matrix", "csr_matrix", "csc_array", "csr_array")
 
 
@@ -415,6 +418,24 @@ def _triage_write(
                 reconstructor = copyreg._reconstructor
                 state = value.__getstate__()
                 additional = []
+            elif len(reduced) == 2 and reduced[0] is type(value):
+                # Objects like pathlib.Path reduce to (cls, args) without any state.
+                # Following pickle, reconstruct them as cls(*args), as setting
+                # their (slot) attributes directly is not guaranteed to work
+                # (e.g., Path._raw_path is a read-only property on Python 3.13).
+                sub_root = _create_titled_group(root, key, class_type)
+                _triage_write(
+                    _REDUCE_ARGS_KEY,
+                    tuple(reduced[1]),
+                    sub_root,
+                    comp_kw,
+                    where,
+                    cleanup_data=cleanup_data,
+                    slash=slash,
+                    use_json=use_json,
+                    use_state=use_state,
+                )
+                return
             elif len(reduced) == 2:
                 # some objects do not return their internal state via
                 # __reduce__, but can be reconstructed anyway by assigned the
@@ -630,6 +651,11 @@ def _triage_read(node, slash="ignore", allow_pickle=False):
             # of the __getstate__() method in the object class.
             # Based on https://docs.python.org/3/library/pickle.html#object.__getstate__
             _check_allow_pickle(allow_pickle, "object of type", type_str)
+            if _REDUCE_ARGS_KEY in node:
+                args = _triage_read(
+                    node[_REDUCE_ARGS_KEY], slash="ignore", allow_pickle=allow_pickle
+                )
+                return _import_class(class_type=type_str)(*args)
             return _setstate(
                 obj_class=_import_class(class_type=type_str),
                 state_dict={

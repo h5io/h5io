@@ -724,6 +724,49 @@ def test_state_with_pathlib(tmp_path):
         allow_pickle=True,
     )
     assert path_obj == path_obj_reload
+    assert type(path_obj) is type(path_obj_reload)
+
+
+class _ReadOnlyBase:
+    __slots__ = ("_value",)
+
+
+class ReduceArgsReadOnly(_ReadOnlyBase):
+    """Mimic pathlib.Path on Python 3.13 (gh-86).
+
+    A slot is shadowed by a read-only property, so the default __getstate__
+    includes a key that cannot be restored via setattr.
+    """
+
+    __slots__ = ("_raw",)
+
+    def __init__(self, raw):
+        self._raw = raw
+
+    @property
+    def _value(self):
+        return self._raw.upper()
+
+    def __reduce__(self):  # noqa: D105
+        return (self.__class__, (self._raw,))
+
+    def __eq__(self, other):  # noqa: D105
+        return type(self) is type(other) and self._raw == other._raw
+
+
+@pytest.mark.skipif(sys.version_info < (3, 11), reason="requires python3.11 or higher")
+@pytest.mark.parametrize("use_json", (False, True))
+def test_state_with_reduce_args(tmp_path, use_json):
+    """Objects reducing to (cls, args) are rebuilt as cls(*args)."""
+    test_file = tmp_path / "test.hdf5"
+    obj = ReduceArgsReadOnly("foo")
+    assert "_value" in obj.__getstate__()[1]  # the problematic case
+    data = {"obj": obj, "objs": [ReduceArgsReadOnly("a"), ReduceArgsReadOnly("b")]}
+    write_hdf5(test_file, data, use_json=use_json, use_state=True)
+    with pytest.raises(ValueError, match="allow_pickle"):
+        read_hdf5(test_file)
+    data_reload = read_hdf5(test_file, allow_pickle=True)
+    assert data_reload == data
 
 
 @pytest.mark.skipif(sys.version_info < (3, 11), reason="requires python3.11 or higher")

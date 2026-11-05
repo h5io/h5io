@@ -17,6 +17,8 @@ jobs:
   pytest:
     name: '${{ matrix.os }} / ${{ matrix.python }}'
     runs-on: ${{ matrix.os }}
+    env:
+      PYTHON_GIL: ${{ endsWith(matrix.python, 't') && '0' || '' }}
     defaults:
       run:
         shell: bash -e {0}
@@ -24,6 +26,13 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # Latest Python; no h5py wheels yet so build it against system HDF5
+          - os: ubuntu-latest
+            python: '3.15'
+            hdf5-source: true
+          # Free-threaded
+          - os: ubuntu-latest
+            python: '3.14t'
           - os: ubuntu-latest
             python: '3.12'
           - os: macos-latest
@@ -35,6 +44,11 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python }}
+      - run: |
+          sudo apt-get update
+          sudo apt-get install -y libhdf5-dev
+          echo "HDF5_DIR=/usr/lib/x86_64-linux-gnu/hdf5/serial" >> $GITHUB_ENV
+        if: matrix.hdf5-source
       - run: pip install scipy pandas pytest pytest-cov tables -e .
       - run: pytest -v h5io
       - uses: codecov/codecov-action@v7
