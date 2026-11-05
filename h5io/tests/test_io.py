@@ -1,10 +1,11 @@
 """Tests."""
 
 import datetime
+import pathlib
 import sys
 from abc import ABCMeta
 from io import UnsupportedOperation
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 
 import numpy as np
 import pytest
@@ -681,49 +682,65 @@ def test_state_with_numpy_poly1d(tmp_path):
     assert polyfit_obj == polyfit_obj_reload
 
 
-@pytest.mark.skipif(sys.version_info < (3, 11), reason="requires python3.11 or higher")
-def test_state_with_pathlib(tmp_path):
-    """The Path object has __slots__ and no instance __dict__."""
+@pytest.mark.parametrize("use_json", (False, True))
+@pytest.mark.parametrize("use_state", (False, True))
+def test_pathlib(tmp_path, use_json, use_state):
+    """Test native pathlib round trips, which do not need allow_pickle (gh-113)."""
+    if use_state and sys.version_info < (3, 11):
+        pytest.skip("use_state requires python3.11 or higher")
     test_file = tmp_path / "test.hdf5"
-    path_obj = Path(tmp_path)
-    pytest.raises(
-        TypeError,
-        write_hdf5,
-        test_file,
-        path_obj,
-        title="pathobj",
-        overwrite="update",
-    )
-    write_hdf5(
-        fname=test_file,
-        data=path_obj,
-        title="pathobj",
-        overwrite="update",
-        use_json=False,
-        use_state=True,
-    )
-    path_obj_reload = read_hdf5(
-        fname=test_file,
-        title="pathobj",
-        slash="ignore",
-        allow_pickle=True,
-    )
-    assert path_obj == path_obj_reload
-    write_hdf5(
-        fname=test_file,
-        data=path_obj,
-        title="pathobj_json",
-        overwrite="update",
-        use_json=True,
-        use_state=True,
-    )
-    path_obj_reload = read_hdf5(
-        fname=test_file,
-        title="pathobj_json",
-        slash="ignore",
-        allow_pickle=True,
-    )
-    assert path_obj == path_obj_reload
+    data = dict(path=tmp_path, pure=[PurePosixPath("/a/b"), PureWindowsPath("C:/a")])
+    write_hdf5(test_file, data, use_json=use_json, use_state=use_state)
+    assert object_diff(read_hdf5(test_file), data) == ""
+    # A concrete path from another OS falls back to the matching pure class
+    other = "PosixPath" if sys.platform == "win32" else "WindowsPath"
+    other_path = getattr(pathlib, f"Pure{other}")("a", "b")
+    write_hdf5(test_file, other_path, overwrite=True)
+    with h5py.File(test_file, "a") as fid:  # mimic writing on the other OS
+        fid["h5io"].attrs["TITLE"] = f"path_{other}"
+    assert read_hdf5(test_file) == other_path
+
+
+class _ReadOnlyBase:
+    __slots__ = ("_value",)
+
+
+class ReduceArgsReadOnly(_ReadOnlyBase):
+    """Mimic pathlib.Path on Python 3.13 (gh-86).
+
+    A slot is shadowed by a read-only property, so the default __getstate__
+    includes a key that cannot be restored via setattr.
+    """
+
+    __slots__ = ("_raw",)
+
+    def __init__(self, raw):
+        self._raw = raw
+
+    @property
+    def _value(self):
+        return self._raw.upper()
+
+    def __reduce__(self):  # noqa: D105
+        return (self.__class__, (self._raw,))
+
+    def __eq__(self, other):  # noqa: D105
+        return type(self) is type(other) and self._raw == other._raw
+
+
+@pytest.mark.skipif(sys.version_info < (3, 11), reason="requires python3.11 or higher")
+@pytest.mark.parametrize("use_json", (False, True))
+def test_state_with_reduce_args(tmp_path, use_json):
+    """Objects reducing to (cls, args) are rebuilt as cls(*args)."""
+    test_file = tmp_path / "test.hdf5"
+    obj = ReduceArgsReadOnly("foo")
+    assert "_value" in obj.__getstate__()[1]  # the problematic case
+    data = {"obj": obj, "objs": [ReduceArgsReadOnly("a"), ReduceArgsReadOnly("b")]}
+    write_hdf5(test_file, data, use_json=use_json, use_state=True)
+    with pytest.raises(ValueError, match="allow_pickle"):
+        read_hdf5(test_file)
+    data_reload = read_hdf5(test_file, allow_pickle=True)
+    assert data_reload == data
 
 
 @pytest.mark.skipif(sys.version_info < (3, 11), reason="requires python3.11 or higher")
