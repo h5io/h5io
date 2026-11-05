@@ -1,10 +1,11 @@
 """Tests."""
 
 import datetime
+import pathlib
 import sys
 from abc import ABCMeta
 from io import UnsupportedOperation
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 
 import numpy as np
 import pytest
@@ -681,50 +682,22 @@ def test_state_with_numpy_poly1d(tmp_path):
     assert polyfit_obj == polyfit_obj_reload
 
 
-@pytest.mark.skipif(sys.version_info < (3, 11), reason="requires python3.11 or higher")
-def test_state_with_pathlib(tmp_path):
-    """The Path object has __slots__ and no instance __dict__."""
+@pytest.mark.parametrize("use_json", (False, True))
+@pytest.mark.parametrize("use_state", (False, True))
+def test_pathlib(tmp_path, use_json, use_state):
+    """Test native pathlib round trips, which do not need allow_pickle (gh-113)."""
+    if use_state and sys.version_info < (3, 11):
+        pytest.skip("use_state requires python3.11 or higher")
     test_file = tmp_path / "test.hdf5"
-    path_obj = Path(tmp_path)
-    pytest.raises(
-        TypeError,
-        write_hdf5,
-        test_file,
-        path_obj,
-        title="pathobj",
-        overwrite="update",
-    )
-    write_hdf5(
-        fname=test_file,
-        data=path_obj,
-        title="pathobj",
-        overwrite="update",
-        use_json=False,
-        use_state=True,
-    )
-    path_obj_reload = read_hdf5(
-        fname=test_file,
-        title="pathobj",
-        slash="ignore",
-        allow_pickle=True,
-    )
-    assert path_obj == path_obj_reload
-    write_hdf5(
-        fname=test_file,
-        data=path_obj,
-        title="pathobj_json",
-        overwrite="update",
-        use_json=True,
-        use_state=True,
-    )
-    path_obj_reload = read_hdf5(
-        fname=test_file,
-        title="pathobj_json",
-        slash="ignore",
-        allow_pickle=True,
-    )
-    assert path_obj == path_obj_reload
-    assert type(path_obj) is type(path_obj_reload)
+    data = dict(path=tmp_path, pure=[PurePosixPath("/a/b"), PureWindowsPath("C:/a")])
+    write_hdf5(test_file, data, use_json=use_json, use_state=use_state)
+    assert object_diff(read_hdf5(test_file), data) == ""
+    # A concrete path from another OS falls back to the matching pure class
+    write_hdf5(test_file, Path("a", "b"), overwrite=True)
+    other = "PosixPath" if sys.platform == "win32" else "WindowsPath"
+    with h5py.File(test_file, "a") as fid:
+        fid["h5io"].attrs["TITLE"] = f"path_{other}"
+    assert read_hdf5(test_file) == getattr(pathlib, f"Pure{other}")("a", "b")
 
 
 class _ReadOnlyBase:

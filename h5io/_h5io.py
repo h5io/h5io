@@ -9,6 +9,7 @@ import datetime
 import importlib
 import inspect
 import json
+import pathlib
 import sys
 from inspect import isclass
 from io import UnsupportedOperation
@@ -25,6 +26,11 @@ tab_str = "----"
 # Reserved group key used (with use_state=True) to store the constructor arguments
 # of objects whose __reduce__() returns (cls, args)
 _REDUCE_ARGS_KEY = "__h5io_reduce_args__"
+# pathlib classes written natively (reading uses only this allow list)
+_PATH_TYPES = {
+    name: getattr(pathlib, name)
+    for name in ("PurePosixPath", "PureWindowsPath", "PosixPath", "WindowsPath")
+}
 _SPARSE_KINDS = ("csc_matrix", "csr_matrix", "csc_array", "csr_array")
 
 
@@ -122,7 +128,8 @@ def write_hdf5(
     data : object
         Object to write. Can be of any of these types:
 
-            {ndarray, dict, list, tuple, int, float, str, datetime, date, timezone}
+            {ndarray, dict, list, tuple, int, float, str, datetime, date, timezone,
+             pathlib.Path}
 
         Note that dict objects must only have ``str`` keys. It is recommended
         to use ndarrays where possible, as it is handled most efficiently.
@@ -307,6 +314,10 @@ def _triage_write(
     elif isinstance(value, datetime.timezone):
         title = "timezone"  # the __repr__ is complete
         value = np.frombuffer(repr(value).encode("utf-8"), np.uint8)
+        _create_titled_dataset(root, key, title, value)
+    elif type(value) in _PATH_TYPES.values():
+        title = "path_" + type(value).__name__
+        value = np.frombuffer(str(value).encode("utf-8"), np.uint8)
         _create_titled_dataset(root, key, title, value)
     elif isinstance(value, (np.integer, np.floating, np.bool_)):
         title = "np_{0}".format(value.__class__.__name__)
@@ -689,6 +700,12 @@ def _triage_read(node, slash="ignore", allow_pickle=False):
         data = datetime.date.fromisoformat(data)
     elif type_str == "timezone":
         data = _parse_timezone(str(np.array(node).tobytes().decode("utf-8")))
+    elif type_str.startswith("path_") and type_str[5:] in _PATH_TYPES:
+        path_str = str(np.array(node).tobytes().decode("utf-8"))
+        try:
+            data = _PATH_TYPES[type_str[5:]](path_str)
+        except NotImplementedError:  # e.g., WindowsPath on POSIX
+            data = _PATH_TYPES["Pure" + type_str[5:]](path_str)
     elif type_str.startswith("np_"):
         np_type = type_str.split("_")[1]
         cast = getattr(np, np_type) if np_type != "bool" else bool
@@ -840,7 +857,7 @@ def object_diff(a, b, pre=""):
         else:
             for xx1, xx2 in zip(a, b):
                 out += object_diff(xx1, xx2, pre="")
-    elif isinstance(a, (str, int, float, bytes)):
+    elif isinstance(a, (str, int, float, bytes, PurePath)):
         if a != b:
             out += pre + " value mismatch (%s, %s)\n" % (a, b)
     elif a is None:
