@@ -10,6 +10,7 @@ import importlib
 import inspect
 import json
 import pathlib
+import re
 import sys
 from inspect import isclass
 from io import UnsupportedOperation
@@ -533,7 +534,15 @@ def _triage_write(
 # READING
 
 
-def read_hdf5(fname, title="h5io", slash="ignore", *, allow_pickle=False):
+def read_hdf5(
+    fname,
+    title="h5io",
+    slash="ignore",
+    *,
+    allow_pickle=False,
+    include=None,
+    exclude=None,
+):
     """Read python object from HDF5 format using h5py.
 
     Parameters
@@ -555,11 +564,44 @@ def read_hdf5(fname, title="h5io", slash="ignore", *, allow_pickle=False):
         for files from trusted sources.
 
         .. versionadded:: 0.2.6
+    include : str | None
+        Regular expression for selecting dictionary entries. Matching uses
+        :func:`re.search` on physical HDF5 paths relative to the selected root.
+        Dictionary-entry paths use h5io's stored names, e.g.,
+        ``key_epochs/key_data``; logical Python dictionary paths are not used.
+        Lists, tuples, sparse matrices, and other compound serialized values
+        are read atomically and cannot be selectively pruned internally.
+    exclude : str | None
+        Regular expression for dictionary entries to skip. Matching uses
+        :func:`re.search` on physical HDF5 paths relative to the selected root.
+        Excluded paths take precedence over ``include``. Defaults to ``None``,
+        which excludes nothing.
 
     Returns
     -------
     data : object
         The loaded data. Can be of any type supported by ``write_hdf5``.
+
+    Notes
+    -----
+    When both selectors are ``None``, existing behavior is unchanged and all
+    data is read. Otherwise, filtering applies to dictionary entries using
+    complete physical HDF5 paths relative to the selected root group. Ancestors
+    of matching entries are retained, and matching a dictionary group includes
+    its descendants subject to ``exclude``. If both selectors are provided,
+    matching ``include`` paths are read except for paths matching ``exclude``.
+    Lists, tuples, sparse matrices, and other compound serialized values are
+    atomic: filters cannot selectively prune their children. Filtering
+    requires a dictionary stored as an HDF5 group; requesting filters for any
+    other root type raises :class:`ValueError`. JSON-packed dictionaries cannot
+    be filtered. Regex patterns are compiled once per call; invalid patterns
+    raise :class:`re.error`, and selectors other than strings or ``None`` raise
+    :class:`TypeError`.
+
+    For example, ``read_hdf5(fname, exclude="data")`` reads other entries
+    without materializing matching datasets. ``read_hdf5(fname, include="data")``
+    reads matching entries later. Nested entries can be selected with a full
+    path such as ``include="key_epochs/key_data"``.
     """
     h5py = _check_h5py()
     if isinstance(fname, _path_like):
@@ -573,13 +615,37 @@ def read_hdf5(fname, title="h5io", slash="ignore", *, allow_pickle=False):
     if not isinstance(title, str):
         raise ValueError("title must be a string")
 
+    def _compile_pattern(pattern, name):
+        if pattern is None:
+            return None
+        if not isinstance(pattern, str):
+            raise TypeError(f"{name} must be a string or None, got {type(pattern)}")
+        return re.compile(pattern)
+
+    include = _compile_pattern(include, "include")
+    exclude = _compile_pattern(exclude, "exclude")
+
     def _read(fid):
         if title not in fid:
             raise ValueError('no "%s" data found' % title)
         if isinstance(fid[title], h5py.Group):
             if "TITLE" not in fid[title].attrs:
                 raise ValueError('no "%s" data found' % title)
-        return _triage_read(fid[title], slash=slash, allow_pickle=allow_pickle)
+        root = fid[title]
+        if include is not None or exclude is not None:
+            if not (
+                isinstance(root, h5py.Group)
+                and root.attrs.get("TITLE") in ("dict", b"dict")
+            ):
+                raise ValueError("include and exclude require a dictionary root")
+            return _triage_read(
+                root,
+                slash=slash,
+                allow_pickle=allow_pickle,
+                include=include,
+                exclude=exclude,
+            )
+        return _triage_read(root, slash=slash, allow_pickle=allow_pickle)
 
     if isinstance(fname, h5py.File):
         return _read(fname)
@@ -588,7 +654,9 @@ def read_hdf5(fname, title="h5io", slash="ignore", *, allow_pickle=False):
             return _read(fid)
 
 
-def _triage_read(node, slash="ignore", allow_pickle=False):
+def _triage_read(
+    node, slash="ignore", allow_pickle=False, include=None, exclude=None, path=""
+):
     if slash not in ["ignore", "replace"]:
         raise ValueError("slash must be one of 'replace', 'ignore'")
     h5py = _check_h5py()
@@ -600,6 +668,31 @@ def _triage_read(node, slash="ignore", allow_pickle=False):
         if type_str == "dict":
             data = dict()
             for key, subnode in node.items():
+                if include is not None or exclude is not None:
+                    sub_is_dict = isinstance(subnode, h5py.Group) and subnode.attrs.get(
+                        "TITLE"
+                    ) in ("dict", b"dict")
+                    subpath = "/".join(part for part in (path, key) if part)
+                    if exclude is not None and exclude.search(subpath):
+                        continue
+                    include_match = include is None or include.search(subpath)
+                    if not include_match and not sub_is_dict:
+                        continue
+                    sub_include = include if sub_is_dict and not include_match else None
+                    sub_data = _triage_read(
+                        subnode,
+                        slash=slash,
+                        allow_pickle=allow_pickle,
+                        include=sub_include,
+                        exclude=exclude if sub_is_dict else None,
+                        path=subpath if sub_is_dict else "",
+                    )
+                    if include_match or sub_data:
+                        if slash == "replace":
+                            for key_spec, val_spec in special_chars.items():
+                                key = key.replace(key_spec, val_spec)
+                        data[key[4:]] = sub_data
+                    continue
                 if slash == "replace":
                     for key_spec, val_spec in special_chars.items():
                         key = key.replace(key_spec, val_spec)

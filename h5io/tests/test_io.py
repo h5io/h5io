@@ -2,6 +2,7 @@
 
 import datetime
 import pathlib
+import re
 import sys
 from abc import ABCMeta
 from io import UnsupportedOperation
@@ -156,6 +157,138 @@ def test_hdf5_with_open_file(tmp_path):
 
         write_hdf5(test_file, 5, title="second", overwrite="update", compression=5)
         assert_equal(read_hdf5(test_file, title="second"), 5)
+
+
+def test_selective_read(tmp_path, monkeypatch):
+    """Test selective reads of dictionary entries."""
+    test_file = tmp_path / "selective.h5"
+    data = dict(
+        data=np.arange(100_000),
+        epochs=dict(data=np.arange(3), events=np.arange(2)),
+        subject=dict(info=np.arange(4)),
+    )
+    write_hdf5(test_file, data)
+    assert object_diff(read_hdf5(test_file), data) == ""
+
+    read_paths = []
+    dataset_array = h5py.Dataset.__array__
+    dataset_getitem = h5py.Dataset.__getitem__
+
+    def track_array(dataset, *args, **kwargs):
+        read_paths.append(dataset.name)
+        return dataset_array(dataset, *args, **kwargs)
+
+    def track_getitem(dataset, key):
+        read_paths.append(dataset.name)
+        return dataset_getitem(dataset, key)
+
+    monkeypatch.setattr(h5py.Dataset, "__array__", track_array)
+    monkeypatch.setattr(h5py.Dataset, "__getitem__", track_getitem)
+    got = read_hdf5(test_file, exclude="key_data$")
+    assert set(got) == {"epochs", "subject"}
+    assert "/h5io/key_data" not in read_paths
+    assert "/h5io/key_epochs/key_data" not in read_paths
+    assert "/h5io/key_subject/key_info" in read_paths
+
+    read_paths.clear()
+    got = read_hdf5(test_file, include="key_epochs/key_data")
+    assert object_diff(got, {"epochs": {"data": data["epochs"]["data"]}}) == ""
+    assert set(read_paths) == {"/h5io/key_epochs/key_data"}
+
+    read_paths.clear()
+    got = read_hdf5(test_file, include="data|events", exclude="events$")
+    assert (
+        object_diff(
+            got, {"data": data["data"], "epochs": {"data": data["epochs"]["data"]}}
+        )
+        == ""
+    )
+    assert "/h5io/key_epochs/key_events" not in read_paths
+    assert "/h5io/key_data" in read_paths
+    assert "/h5io/key_epochs/key_data" in read_paths
+    assert read_hdf5(test_file, include="does_not_match") == {}
+    with pytest.raises(re.error):
+        read_hdf5(test_file, include="[")
+    with pytest.raises(re.error):
+        read_hdf5(test_file, exclude="[")
+
+
+def test_selective_read_compound_values(tmp_path):
+    """Test selective reads preserve compound value reconstruction."""
+    test_file = tmp_path / "selective_compound.h5"
+    matrix = np.eye(3) if sparse is None else sparse.csr_matrix(np.eye(3))
+    data = dict(matrix=matrix, items=[np.arange(2), None], pair=(1, "two"))
+    write_hdf5(test_file, data)
+    got = read_hdf5(test_file, include="key_(matrix|items|pair)")
+    assert object_diff(got, data) == ""
+
+
+def test_selective_read_empty_dicts_and_groups(tmp_path):
+    """Test filtered reads retain empty dictionaries and matched groups."""
+    test_file = tmp_path / "selective_empty.h5"
+    data = dict(
+        epochs=dict(data=np.arange(3), events=np.arange(2)),
+        subject=dict(data=np.arange(4)),
+        empty=dict(),
+        nested=dict(empty=dict()),
+    )
+    write_hdf5(test_file, data)
+    assert object_diff(read_hdf5(test_file), data) == ""
+
+    got = read_hdf5(test_file, exclude="key_epochs/key_(data|events)")
+    assert got["epochs"] == {}
+    assert got["empty"] == {}
+    assert got["nested"] == {"empty": {}}
+    assert (
+        object_diff(
+            read_hdf5(test_file, include="key_epochs", exclude="key_epochs/key_events"),
+            {"epochs": {"data": data["epochs"]["data"]}},
+        )
+        == ""
+    )
+
+
+def test_selective_read_same_basename(tmp_path):
+    """Test full paths distinguish entries with matching basenames."""
+    test_file = tmp_path / "selective_paths.h5"
+    data = dict(epochs=dict(data=np.arange(3)), subject=dict(data=np.arange(4)))
+    write_hdf5(test_file, data)
+    assert (
+        object_diff(
+            read_hdf5(test_file, include="key_epochs/key_data"),
+            {"epochs": data["epochs"]},
+        )
+        == ""
+    )
+    assert (
+        object_diff(
+            read_hdf5(test_file, include="key_subject/key_data"),
+            {"subject": data["subject"]},
+        )
+        == ""
+    )
+
+
+def test_selective_read_keyword_only_and_types(tmp_path):
+    """Test selector keyword-only behavior and input validation."""
+    test_file = tmp_path / "selective_keywords.h5"
+    data = {"data": np.arange(2)}
+    write_hdf5(test_file, data)
+    assert object_diff(read_hdf5(test_file, "h5io", "ignore"), data) == ""
+    with pytest.raises(TypeError):
+        read_hdf5(test_file, "h5io", "ignore", "key_data")
+    for selector in ("include", "exclude"):
+        for pattern in (b"key_data", 1, ["key_data"]):
+            with pytest.raises(TypeError, match=f"{selector} must be a string or None"):
+                read_hdf5(test_file, **{selector: pattern})
+
+
+def test_selective_read_requires_dict_root(tmp_path):
+    """Test filters reject root values that cannot be safely pruned."""
+    test_file = tmp_path / "selective_scalar.h5"
+    write_hdf5(test_file, np.arange(3))
+    with pytest.raises(ValueError, match="require a dictionary root"):
+        read_hdf5(test_file, include="data")
 
 
 def test_h5_file_object(tmp_path):
