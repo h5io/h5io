@@ -213,9 +213,14 @@ def test_selective_read(tmp_path, include, exclude, expected):
     write_hdf5(test_file, data, slash="replace")
     got = read_hdf5(test_file, slash="replace", include=include, exclude=exclude)
     assert object_diff(got, expected) == ""
-    if include == "literal/data":
-        got = read_hdf5(test_file, include=include)
-        assert object_diff(got, {"literal{FWDSLASH}data": 4}) == ""
+
+
+def test_selective_read_slash_ignore(tmp_path):
+    """Test keys containing slashes match with the slash restored."""
+    test_file = tmp_path / "selective_slash.h5"
+    write_hdf5(test_file, {"literal/data": 4}, slash="replace")
+    got = read_hdf5(test_file, include="literal/data")
+    assert got == {"literal{FWDSLASH}data": 4}
 
 
 def test_selective_read_skips_excluded_datasets(tmp_path, monkeypatch):

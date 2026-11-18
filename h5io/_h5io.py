@@ -565,11 +565,13 @@ def read_hdf5(
 
         .. versionadded:: 0.2.6
     include : str | None
-        Regular expression selecting dictionary entries by restored keys joined
+        Regular expression selecting dictionary entries by their keys joined
         with ``/``, e.g., ``epochs/data``. Matching uses
-        :func:`re.fullmatch`; use ``.*data.*`` for substring matching. Keys
-        containing ``/`` are ambiguous with nested paths. Compound values such
-        as lists, tuples, and sparse matrices are read atomically.
+        :func:`re.fullmatch`; use ``.*data.*`` for substring matching. Only a
+        dictionary root can be filtered, and values such as lists, tuples, and
+        sparse matrices are read whole. Keys containing ``/`` are matched with
+        the ``/`` restored (regardless of ``slash``), so they are ambiguous with
+        nested paths.
 
         .. versionadded:: 0.3
     exclude : str | None
@@ -583,11 +585,6 @@ def read_hdf5(
     -------
     data : object
         The loaded data. Can be of any type supported by ``write_hdf5``.
-
-    With both selectors ``None``, all data is read as before. Filtering is
-    supported only for dictionary roots; compound values are atomic and cannot
-    have their children selectively pruned. Keys containing ``/`` are
-    ambiguous with nested paths.
     """
     h5py = _check_h5py()
     if isinstance(fname, _path_like):
@@ -654,36 +651,33 @@ def _triage_read(
         if type_str == "dict":
             data = dict()
             for key, subnode in node.items():
-                key_name = key[4:]
-                match_key = key_name
-                for key_spec, val_spec in special_chars.items():
-                    match_key = match_key.replace(key_spec, val_spec)
-                if slash == "replace":
-                    key_name = match_key
-
-                sub_is_dict = isinstance(subnode, h5py.Group) and subnode.attrs.get(
-                    "TITLE"
-                ) in ("dict", b"dict")
-                subpath = "/".join(part for part in (path, match_key) if part)
+                include_match, sub_kwargs = True, dict()
                 if include is not None or exclude is not None:
+                    subpath = key[4:]
+                    for key_spec, val_spec in special_chars.items():
+                        subpath = subpath.replace(key_spec, val_spec)
+                    subpath = f"{path}/{subpath}" if path else subpath
                     if exclude is not None and exclude.fullmatch(subpath):
                         continue
                     include_match = include is None or include.fullmatch(subpath)
-                    if not include_match and not sub_is_dict:
+                    if isinstance(subnode, h5py.Group) and subnode.attrs.get(
+                        "TITLE"
+                    ) in ("dict", b"dict"):
+                        sub_kwargs = dict(
+                            include=None if include_match else include,
+                            exclude=exclude,
+                            path=subpath,
+                        )
+                    elif not include_match:
                         continue
-                else:
-                    include_match = True
-
+                if slash == "replace":
+                    for key_spec, val_spec in special_chars.items():
+                        key = key.replace(key_spec, val_spec)
                 sub_data = _triage_read(
-                    subnode,
-                    slash=slash,
-                    allow_pickle=allow_pickle,
-                    include=(include if sub_is_dict and not include_match else None),
-                    exclude=exclude if sub_is_dict else None,
-                    path=subpath if sub_is_dict else "",
+                    subnode, slash=slash, allow_pickle=allow_pickle, **sub_kwargs
                 )
                 if include_match or sub_data:
-                    data[key_name] = sub_data
+                    data[key[4:]] = sub_data
         elif type_str in ["list", "tuple"]:
             data = list()
             ii = 0
