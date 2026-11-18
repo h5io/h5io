@@ -573,13 +573,13 @@ def read_hdf5(
         the ``/`` restored (regardless of ``slash``), so they are ambiguous with
         nested paths.
 
-        .. versionadded:: 0.3
+        .. versionadded:: 0.2.7
     exclude : str | None
         Regular expression selecting dictionary entries to skip, using the same
         path and matching rules as ``include``. Excluded paths take precedence
         over ``include``.
 
-        .. versionadded:: 0.3
+        .. versionadded:: 0.2.7
 
     Returns
     -------
