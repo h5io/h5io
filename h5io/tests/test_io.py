@@ -159,16 +159,70 @@ def test_hdf5_with_open_file(tmp_path):
         assert_equal(read_hdf5(test_file, title="second"), 5)
 
 
-def test_selective_read(tmp_path, monkeypatch):
-    """Test selective reads of dictionary entries."""
+@pytest.mark.parametrize(
+    ("include", "exclude", "expected"),
+    [
+        ("epochs/data", None, {"epochs": {"data": 1}}),
+        (
+            ".*data.*",
+            None,
+            {"epochs": {"data": 1}, "subject": {"data": 3}, "literal/data": 4},
+        ),
+        ("data", None, {}),
+        (
+            None,
+            "epochs/events",
+            {
+                "epochs": {"data": 1},
+                "subject": {"data": 3},
+                "empty": {},
+                "nested": {"empty": {}},
+                "literal/data": 4,
+                "compound": [1, (2, "three")],
+                "matrix": (
+                    np.eye(3) if sparse is None else sparse.csr_matrix(np.eye(3))
+                ),
+            },
+        ),
+        ("epochs", "epochs/events", {"epochs": {"data": 1}}),
+        ("epochs", "epochs/.*", {"epochs": {}}),
+        ("literal/data", None, {"literal/data": 4}),
+        ("empty", None, {"empty": {}}),
+        ("nested/empty", None, {"nested": {"empty": {}}}),
+        ("compound", None, {"compound": [1, (2, "three")]}),
+        (
+            "matrix",
+            None,
+            {"matrix": (np.eye(3) if sparse is None else sparse.csr_matrix(np.eye(3)))},
+        ),
+        ("epochs/data", "epochs/data", {}),
+    ],
+)
+def test_selective_read(tmp_path, include, exclude, expected):
+    """Test selection of dictionary entries using restored full paths."""
     test_file = tmp_path / "selective.h5"
-    data = dict(
-        data=np.arange(100_000),
-        epochs=dict(data=np.arange(3), events=np.arange(2)),
-        subject=dict(info=np.arange(4)),
-    )
+    data = {
+        "epochs": {"data": 1, "events": 2},
+        "subject": {"data": 3},
+        "empty": {},
+        "nested": {"empty": {}},
+        "literal/data": 4,
+        "compound": [1, (2, "three")],
+        "matrix": np.eye(3) if sparse is None else sparse.csr_matrix(np.eye(3)),
+    }
+    write_hdf5(test_file, data, slash="replace")
+    got = read_hdf5(test_file, slash="replace", include=include, exclude=exclude)
+    assert object_diff(got, expected) == ""
+    if include == "literal/data":
+        got = read_hdf5(test_file, include=include)
+        assert object_diff(got, {"literal{FWDSLASH}data": 4}) == ""
+
+
+def test_selective_read_skips_excluded_datasets(tmp_path, monkeypatch):
+    """Test excluded HDF5 datasets are not materialized."""
+    test_file = tmp_path / "selective_large.h5"
+    data = {"data": np.arange(100_000), "metadata": np.arange(3)}
     write_hdf5(test_file, data)
-    assert object_diff(read_hdf5(test_file), data) == ""
 
     read_paths = []
     dataset_array = h5py.Dataset.__array__
@@ -184,109 +238,26 @@ def test_selective_read(tmp_path, monkeypatch):
 
     monkeypatch.setattr(h5py.Dataset, "__array__", track_array)
     monkeypatch.setattr(h5py.Dataset, "__getitem__", track_getitem)
-    got = read_hdf5(test_file, exclude="key_data$")
-    assert set(got) == {"epochs", "subject"}
+    got = read_hdf5(test_file, exclude="data")
+    assert set(got) == {"metadata"}
     assert "/h5io/key_data" not in read_paths
-    assert "/h5io/key_epochs/key_data" not in read_paths
-    assert "/h5io/key_subject/key_info" in read_paths
-
-    read_paths.clear()
-    got = read_hdf5(test_file, include="key_epochs/key_data")
-    assert object_diff(got, {"epochs": {"data": data["epochs"]["data"]}}) == ""
-    assert set(read_paths) == {"/h5io/key_epochs/key_data"}
-
-    read_paths.clear()
-    got = read_hdf5(test_file, include="data|events", exclude="events$")
-    assert (
-        object_diff(
-            got, {"data": data["data"], "epochs": {"data": data["epochs"]["data"]}}
-        )
-        == ""
-    )
-    assert "/h5io/key_epochs/key_events" not in read_paths
-    assert "/h5io/key_data" in read_paths
-    assert "/h5io/key_epochs/key_data" in read_paths
-    assert read_hdf5(test_file, include="does_not_match") == {}
-    with pytest.raises(re.error):
-        read_hdf5(test_file, include="[")
-    with pytest.raises(re.error):
-        read_hdf5(test_file, exclude="[")
+    assert "/h5io/key_metadata" in read_paths
 
 
-def test_selective_read_compound_values(tmp_path):
-    """Test selective reads preserve compound value reconstruction."""
-    test_file = tmp_path / "selective_compound.h5"
-    matrix = np.eye(3) if sparse is None else sparse.csr_matrix(np.eye(3))
-    data = dict(matrix=matrix, items=[np.arange(2), None], pair=(1, "two"))
-    write_hdf5(test_file, data)
-    got = read_hdf5(test_file, include="key_(matrix|items|pair)")
-    assert object_diff(got, data) == ""
-
-
-def test_selective_read_empty_dicts_and_groups(tmp_path):
-    """Test filtered reads retain empty dictionaries and matched groups."""
-    test_file = tmp_path / "selective_empty.h5"
-    data = dict(
-        epochs=dict(data=np.arange(3), events=np.arange(2)),
-        subject=dict(data=np.arange(4)),
-        empty=dict(),
-        nested=dict(empty=dict()),
-    )
-    write_hdf5(test_file, data)
-    assert object_diff(read_hdf5(test_file), data) == ""
-
-    got = read_hdf5(test_file, exclude="key_epochs/key_(data|events)")
-    assert got["epochs"] == {}
-    assert got["empty"] == {}
-    assert got["nested"] == {"empty": {}}
-    assert (
-        object_diff(
-            read_hdf5(test_file, include="key_epochs", exclude="key_epochs/key_events"),
-            {"epochs": {"data": data["epochs"]["data"]}},
-        )
-        == ""
-    )
-
-
-def test_selective_read_same_basename(tmp_path):
-    """Test full paths distinguish entries with matching basenames."""
-    test_file = tmp_path / "selective_paths.h5"
-    data = dict(epochs=dict(data=np.arange(3)), subject=dict(data=np.arange(4)))
-    write_hdf5(test_file, data)
-    assert (
-        object_diff(
-            read_hdf5(test_file, include="key_epochs/key_data"),
-            {"epochs": data["epochs"]},
-        )
-        == ""
-    )
-    assert (
-        object_diff(
-            read_hdf5(test_file, include="key_subject/key_data"),
-            {"subject": data["subject"]},
-        )
-        == ""
-    )
-
-
-def test_selective_read_keyword_only_and_types(tmp_path):
-    """Test selector keyword-only behavior and input validation."""
-    test_file = tmp_path / "selective_keywords.h5"
-    data = {"data": np.arange(2)}
-    write_hdf5(test_file, data)
-    assert object_diff(read_hdf5(test_file, "h5io", "ignore"), data) == ""
-    with pytest.raises(TypeError):
-        read_hdf5(test_file, "h5io", "ignore", "key_data")
+def test_selective_read_invalid_inputs(tmp_path):
+    """Test invalid selectors and unsupported root types."""
+    test_file = tmp_path / "selective_invalid.h5"
+    write_hdf5(test_file, {"data": np.arange(2)})
     for selector in ("include", "exclude"):
-        for pattern in (b"key_data", 1, ["key_data"]):
+        for pattern in (b"data", 1, ["data"]):
             with pytest.raises(TypeError, match=f"{selector} must be a string or None"):
                 read_hdf5(test_file, **{selector: pattern})
+        with pytest.raises(re.error):
+            read_hdf5(test_file, **{selector: "["})
+    with pytest.raises(TypeError):
+        read_hdf5(test_file, "h5io", "ignore", "data")
 
-
-def test_selective_read_requires_dict_root(tmp_path):
-    """Test filters reject root values that cannot be safely pruned."""
-    test_file = tmp_path / "selective_scalar.h5"
-    write_hdf5(test_file, np.arange(3))
+    write_hdf5(test_file, np.arange(2), overwrite=True)
     with pytest.raises(ValueError, match="require a dictionary root"):
         read_hdf5(test_file, include="data")
 
@@ -301,6 +272,8 @@ def test_h5_file_object(tmp_path):
         data = {"a": 42}
         write_hdf5(test_file_obj, data)
         assert_equal(read_hdf5(test_file_obj), data)
+        assert_equal(read_hdf5(test_file_obj, include="a"), data)
+        assert read_hdf5(test_file_obj, exclude="a") == {}
     # test that wrong mode raises error
     with h5py.File(test_file_path, "r") as test_file_obj:
         assert test_file_obj.mode == "r"
