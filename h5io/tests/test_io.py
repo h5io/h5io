@@ -2,6 +2,7 @@
 
 import datetime
 import pathlib
+import re
 import sys
 from abc import ABCMeta
 from io import UnsupportedOperation
@@ -158,6 +159,114 @@ def test_hdf5_with_open_file(tmp_path):
         assert_equal(read_hdf5(test_file, title="second"), 5)
 
 
+@pytest.mark.parametrize(
+    ("include", "exclude", "expected"),
+    [
+        ("epochs/data", None, {"epochs": {"data": 1}}),
+        (
+            ".*data.*",
+            None,
+            {"epochs": {"data": 1}, "subject": {"data": 3}, "literal/data": 4},
+        ),
+        ("data", None, {}),
+        (
+            None,
+            "epochs/events",
+            {
+                "epochs": {"data": 1},
+                "subject": {"data": 3},
+                "empty": {},
+                "nested": {"empty": {}},
+                "literal/data": 4,
+                "compound": [1, (2, "three")],
+                "matrix": (
+                    np.eye(3) if sparse is None else sparse.csr_matrix(np.eye(3))
+                ),
+            },
+        ),
+        ("epochs", "epochs/events", {"epochs": {"data": 1}}),
+        ("epochs", "epochs/.*", {"epochs": {}}),
+        ("literal/data", None, {"literal/data": 4}),
+        ("empty", None, {"empty": {}}),
+        ("nested/empty", None, {"nested": {"empty": {}}}),
+        ("compound", None, {"compound": [1, (2, "three")]}),
+        (
+            "matrix",
+            None,
+            {"matrix": (np.eye(3) if sparse is None else sparse.csr_matrix(np.eye(3)))},
+        ),
+        ("epochs/data", "epochs/data", {}),
+    ],
+)
+def test_selective_read(tmp_path, include, exclude, expected):
+    """Test selection of dictionary entries using restored full paths."""
+    test_file = tmp_path / "selective.h5"
+    data = {
+        "epochs": {"data": 1, "events": 2},
+        "subject": {"data": 3},
+        "empty": {},
+        "nested": {"empty": {}},
+        "literal/data": 4,
+        "compound": [1, (2, "three")],
+        "matrix": np.eye(3) if sparse is None else sparse.csr_matrix(np.eye(3)),
+    }
+    write_hdf5(test_file, data, slash="replace")
+    got = read_hdf5(test_file, slash="replace", include=include, exclude=exclude)
+    assert object_diff(got, expected) == ""
+
+
+def test_selective_read_slash_ignore(tmp_path):
+    """Test keys containing slashes match with the slash restored."""
+    test_file = tmp_path / "selective_slash.h5"
+    write_hdf5(test_file, {"literal/data": 4}, slash="replace")
+    got = read_hdf5(test_file, include="literal/data")
+    assert got == {"literal{FWDSLASH}data": 4}
+
+
+def test_selective_read_skips_excluded_datasets(tmp_path, monkeypatch):
+    """Test excluded HDF5 datasets are not materialized."""
+    test_file = tmp_path / "selective_large.h5"
+    data = {"data": np.arange(100_000), "metadata": np.arange(3)}
+    write_hdf5(test_file, data)
+
+    read_paths = []
+    dataset_array = h5py.Dataset.__array__
+    dataset_getitem = h5py.Dataset.__getitem__
+
+    def track_array(dataset, *args, **kwargs):
+        read_paths.append(dataset.name)
+        return dataset_array(dataset, *args, **kwargs)
+
+    def track_getitem(dataset, key):
+        read_paths.append(dataset.name)
+        return dataset_getitem(dataset, key)
+
+    monkeypatch.setattr(h5py.Dataset, "__array__", track_array)
+    monkeypatch.setattr(h5py.Dataset, "__getitem__", track_getitem)
+    got = read_hdf5(test_file, exclude="data")
+    assert set(got) == {"metadata"}
+    assert "/h5io/key_data" not in read_paths
+    assert "/h5io/key_metadata" in read_paths
+
+
+def test_selective_read_invalid_inputs(tmp_path):
+    """Test invalid selectors and unsupported root types."""
+    test_file = tmp_path / "selective_invalid.h5"
+    write_hdf5(test_file, {"data": np.arange(2)})
+    for selector in ("include", "exclude"):
+        for pattern in (b"data", 1, ["data"]):
+            with pytest.raises(TypeError, match=f"{selector} must be a string or None"):
+                read_hdf5(test_file, **{selector: pattern})
+        with pytest.raises(re.error):
+            read_hdf5(test_file, **{selector: "["})
+    with pytest.raises(TypeError):
+        read_hdf5(test_file, "h5io", "ignore", "data")
+
+    write_hdf5(test_file, np.arange(2), overwrite=True)
+    with pytest.raises(ValueError, match="require a dictionary root"):
+        read_hdf5(test_file, include="data")
+
+
 def test_h5_file_object(tmp_path):
     """Test file object support."""
     test_file_path = tmp_path / "test1.hdf5"
@@ -168,6 +277,8 @@ def test_h5_file_object(tmp_path):
         data = {"a": 42}
         write_hdf5(test_file_obj, data)
         assert_equal(read_hdf5(test_file_obj), data)
+        assert_equal(read_hdf5(test_file_obj, include="a"), data)
+        assert read_hdf5(test_file_obj, exclude="a") == {}
     # test that wrong mode raises error
     with h5py.File(test_file_path, "r") as test_file_obj:
         assert test_file_obj.mode == "r"
