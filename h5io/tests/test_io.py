@@ -230,8 +230,10 @@ def test_selective_read_skips_excluded_datasets(tmp_path, monkeypatch):
     write_hdf5(test_file, data)
 
     read_paths = []
+    opened_keys = []
     dataset_array = h5py.Dataset.__array__
     dataset_getitem = h5py.Dataset.__getitem__
+    group_getitem = h5py.Group.__getitem__
 
     def track_array(dataset, *args, **kwargs):
         read_paths.append(dataset.name)
@@ -241,12 +243,19 @@ def test_selective_read_skips_excluded_datasets(tmp_path, monkeypatch):
         read_paths.append(dataset.name)
         return dataset_getitem(dataset, key)
 
+    def track_group(group, key):
+        opened_keys.append(key)
+        return group_getitem(group, key)
+
     monkeypatch.setattr(h5py.Dataset, "__array__", track_array)
     monkeypatch.setattr(h5py.Dataset, "__getitem__", track_getitem)
+    monkeypatch.setattr(h5py.Group, "__getitem__", track_group)
     got = read_hdf5(test_file, exclude="data")
     assert set(got) == {"metadata"}
     assert "/h5io/key_data" not in read_paths
     assert "/h5io/key_metadata" in read_paths
+    assert "key_data" not in opened_keys
+    assert "key_metadata" in opened_keys
 
 
 def test_selective_read_invalid_inputs(tmp_path):
