@@ -407,6 +407,16 @@ def test_multi_dim_array(tmp_path):
         title="second",
         overwrite="update",
     )
+    traj_equal = np.empty(2, dtype=object)
+    traj_equal[:] = [
+        rng.randn(2, 1).astype(np.float32),
+        rng.randn(2, 1).astype(np.float32),
+    ]
+    write_hdf5(test_file, traj_equal, title="third", overwrite="update")
+    read_equal = read_hdf5(test_file, "third")
+    assert read_equal.shape == (2,) and read_equal.dtype == object
+    assert read_equal[0].dtype == np.float32
+    assert all(np.array_equal(a, b) for a, b in zip(read_equal, traj_equal))
 
 
 _STRING_DTYPE = getattr(getattr(np, "dtypes", None), "StringDType", None)

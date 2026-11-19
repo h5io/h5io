@@ -1081,20 +1081,15 @@ def _array_index(shape_lst):
 
 
 def _index_sum(index_lst):
-    index_sum_lst = []
-    for step in index_lst:
-        if index_sum_lst != []:
-            index_sum_lst.append(index_sum_lst[-1] + step)
-        else:
-            index_sum_lst.append(step)
-    return index_sum_lst
+    return np.cumsum(index_lst).tolist()
 
 
 def _merge_array(array):
-    merged_lst = []
-    for sub in array:
-        merged_lst += sub.tolist()
-    return np.array(merged_lst)
+    if not len(array):
+        return np.array([])
+    if array[0].dtype == np.dtype("object"):
+        return np.array(sum([sub.tolist() for sub in array], []))
+    return np.concatenate(array, axis=0)
 
 
 def multiarray_dump(array):
@@ -1106,13 +1101,9 @@ def multiarray_dump(array):
 
 
 def multiarray_load(index, array_merged):
-    array_restore = []
-    i_prev = 0
-    for i in index[:-1]:
-        array_restore.append(array_merged[i_prev:i])
-        i_prev = i
-    array_restore.append(array_merged[i_prev:])
-    return np.array(array_restore, dtype=object)
+    out = np.empty(len(index), dtype=object)
+    out[:] = np.split(array_merged, index[:-1])
+    return out
 
 
 def _import_class(class_type):
