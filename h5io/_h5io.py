@@ -1088,7 +1088,7 @@ def _merge_array(array):
     if not len(array):
         return np.array([])
     if array[0].dtype == np.dtype("object"):
-        return np.array(sum([sub.tolist() for sub in array], []))
+        return np.array([x for sub in array for x in sub.tolist()])
     return np.concatenate(array, axis=0)
 
 
