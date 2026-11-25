@@ -650,7 +650,7 @@ def _triage_read(
     if isinstance(node, h5py.Group):
         if type_str == "dict":
             data = dict()
-            for key, subnode in node.items():
+            for key in node:
                 include_match, sub_kwargs = True, dict()
                 if include is not None or exclude is not None:
                     subpath = key[4:]
@@ -660,16 +660,24 @@ def _triage_read(
                     if exclude is not None and exclude.fullmatch(subpath):
                         continue
                     include_match = include is None or include.fullmatch(subpath)
-                    if isinstance(subnode, h5py.Group) and subnode.attrs.get(
-                        "TITLE"
-                    ) in ("dict", b"dict"):
+                    if (
+                        not include_match
+                        and node.get(key, getclass=True) is not h5py.Group
+                    ):
+                        continue
+                subnode = node[key]
+                if isinstance(subnode, h5py.Group) and subnode.attrs.get("TITLE") in (
+                    "dict",
+                    b"dict",
+                ):
+                    if include is not None or exclude is not None:
                         sub_kwargs = dict(
                             include=None if include_match else include,
                             exclude=exclude,
                             path=subpath,
                         )
-                    elif not include_match:
-                        continue
+                elif not include_match:
+                    continue
                 if slash == "replace":
                     for key_spec, val_spec in special_chars.items():
                         key = key.replace(key_spec, val_spec)
